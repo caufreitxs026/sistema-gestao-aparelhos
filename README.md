@@ -37,7 +37,7 @@ Uma aplicação web completa construída com Python e Streamlit para gerir o cic
     ```
 5.  **Aceda à aplicação** no seu navegador, geralmente em `http://localhost:8501`.
     - **Login Padrão:** `admin`
-    - **Senha Padrão:** `info09@FTP`
+    - **Senha Padrão:** `admin`
 
 ---
 *Este projeto foi desenvolvido com o auxílio do Gemini.*
