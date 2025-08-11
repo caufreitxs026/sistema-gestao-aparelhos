@@ -40,4 +40,5 @@ Uma aplicação web completa construída com Python e Streamlit para gerir o cic
     - **Senha Padrão:** `admin`
 
 ---
-*Este projeto foi desenvolvido com o auxílio do Gemini.*
+*LinkedIn: https://linkedin.com/in/cauafreitas*
+*Instagram: Caufreitxs*
