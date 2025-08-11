@@ -1,0 +1,144 @@
+import streamlit as st
+import pandas as pd
+import sqlite3
+from datetime import date
+from auth import show_login_form
+
+# --- Verificação de Autenticação ---
+if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
+    show_login_form()
+    st.stop()
+
+# --- Configurações da Página ---
+st.set_page_config(page_title="Gestão de Aparelhos", layout="wide")
+st.title("Gestão de Aparelhos")
+st.markdown("---")
+
+# --- Funções de Banco de Dados ---
+
+def get_db_connection():
+    conn = sqlite3.connect('inventario.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def carregar_dados_para_selects():
+    conn = get_db_connection()
+    modelos = conn.execute("""
+        SELECT m.id, m.nome_modelo, ma.nome_marca 
+        FROM modelos m 
+        JOIN marcas ma ON m.marca_id = ma.id 
+        ORDER BY ma.nome_marca, m.nome_modelo
+    """).fetchall()
+    status = conn.execute("SELECT id, nome_status FROM status ORDER BY nome_status").fetchall()
+    conn.close()
+    return modelos, status
+
+def adicionar_aparelho_e_historico(serie, imei1, imei2, valor, modelo_id, status_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    data_hoje = date.today()
+    try:
+        cursor.execute("BEGIN TRANSACTION;")
+        cursor.execute(
+            "INSERT INTO aparelhos (numero_serie, imei1, imei2, valor, modelo_id, status_id, data_cadastro) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (serie, imei1, imei2, valor, modelo_id, status_id, data_hoje)
+        )
+        aparelho_id = cursor.lastrowid
+        cursor.execute(
+            "INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, status_id, localizacao_atual, observacoes) VALUES (?, ?, ?, ?, ?)",
+            (data_hoje, aparelho_id, status_id, "Estoque Interno", "Entrada inicial no sistema.")
+        )
+        conn.commit()
+        st.success(f"Aparelho N/S '{serie}' cadastrado com sucesso!")
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        st.error(f"O aparelho com Número de Série '{serie}' já existe.")
+    except Exception as e:
+        conn.rollback()
+        st.error(f"Ocorreu um erro: {e}")
+    finally:
+        conn.close()
+
+def carregar_inventario_completo():
+    conn = get_db_connection()
+    df = pd.read_sql_query("""
+        SELECT 
+            a.id, a.numero_serie, ma.nome_marca, mo.nome_modelo, s.nome_status,
+            a.valor, a.imei1, a.imei2, a.data_cadastro
+        FROM aparelhos a
+        LEFT JOIN modelos mo ON a.modelo_id = mo.id
+        LEFT JOIN marcas ma ON mo.marca_id = ma.id
+        LEFT JOIN status s ON a.status_id = s.id
+        ORDER BY a.data_cadastro DESC
+    """, conn)
+    conn.close()
+    return df
+
+def atualizar_aparelho(aparelho_id, valor):
+    try:
+        conn = get_db_connection()
+        conn.execute("UPDATE aparelhos SET valor = ? WHERE id = ?", (valor, aparelho_id))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao atualizar o aparelho ID {aparelho_id}: {e}")
+        return False
+
+# --- Interface do Usuário ---
+
+modelos_list, status_list = carregar_dados_para_selects()
+
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    st.subheader("Adicionar Novo Aparelho")
+    with st.form("form_novo_aparelho", clear_on_submit=True):
+        novo_serie = st.text_input("Número de Série*")
+        modelos_dict = {f"{m['nome_marca']} - {m['nome_modelo']}": m['id'] for m in modelos_list}
+        modelo_selecionado_str = st.selectbox("Modelo*", options=modelos_dict.keys())
+        novo_imei1 = st.text_input("IMEI 1")
+        novo_imei2 = st.text_input("IMEI 2")
+        novo_valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
+        status_dict = {s['nome_status']: s['id'] for s in status_list}
+        status_selecionado_str = st.selectbox("Status Inicial*", options=status_dict.keys(), index=0)
+
+        if st.form_submit_button("Adicionar Aparelho"):
+            if not novo_serie or not modelo_selecionado_str:
+                st.error("Número de Série e Modelo são campos obrigatórios.")
+            else:
+                modelo_id = modelos_dict[modelo_selecionado_str]
+                status_id = status_dict[status_selecionado_str]
+                adicionar_aparelho_e_historico(novo_serie, novo_imei1, novo_imei2, novo_valor, modelo_id, status_id)
+
+with col2:
+    with st.expander("Ver e Editar Inventário de Aparelhos", expanded=True):
+        inventario_df = carregar_inventario_completo()
+        
+        edited_df = st.data_editor(
+            inventario_df,
+            column_config={
+                "id": st.column_config.NumberColumn("ID", disabled=True),
+                "numero_serie": st.column_config.TextColumn("N/S", disabled=True),
+                "nome_marca": st.column_config.TextColumn("Marca", disabled=True),
+                "nome_modelo": st.column_config.TextColumn("Modelo", disabled=True),
+                "nome_status": st.column_config.TextColumn("Status Atual", disabled=True),
+                "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
+                "imei1": st.column_config.TextColumn("IMEI 1", disabled=True),
+                "imei2": st.column_config.TextColumn("IMEI 2", disabled=True),
+                "data_cadastro": st.column_config.DateColumn("Data de Entrada", disabled=True),
+            },
+            hide_index=True,
+            key="aparelhos_editor"
+        )
+        
+        if st.button("Salvar Alterações no Inventário"):
+            for index, row in edited_df.iterrows():
+                original_row = inventario_df.loc[index]
+                if not row.equals(original_row):
+                    aparelho_id = row['id']
+                    novo_valor = row['valor']
+                    if atualizar_aparelho(aparelho_id, novo_valor):
+                        st.toast(f"Aparelho N/S '{row['numero_serie']}' atualizado!", icon="✅")
+            st.rerun()
+
