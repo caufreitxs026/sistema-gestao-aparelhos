@@ -1,23 +1,38 @@
-# Sistema de Gestão de Aparelhos
+# Sistema de Gestão de Aparelhos v2.0
 
-Uma aplicação web completa construída com Python e Streamlit para gerir o ciclo de vida de aparelhos eletrónicos (smartphones, etc.) numa empresa.
+Uma aplicação web completa construída com Python e Streamlit para gerir o ciclo de vida de aparelhos eletrónicos (smartphones, etc.) numa empresa, desde a aquisição até à baixa.
 
-##  Funcionalidades Principais
+## Funcionalidades Principais
 
 - **Dashboard Gerencial:** Visualização rápida dos principais indicadores (KPIs) do inventário, como total de aparelhos, valor total e gráficos de distribuição por status.
-- **Sistema de Login:** Acesso seguro com diferentes níveis de permissão (Administrador, Editor, Leitor).
-- **Gestão de Cadastros:**
-    - **Aparelhos:** Registo de novos equipamentos com número de série, IMEI, modelo e valor.
-    - **Colaboradores:** Gestão completa dos funcionários, com código, setor e contactos.
-    - **Itens de Referência:** Cadastro de Marcas, Modelos e Setores para manter a consistência dos dados.
-    - **Contas Gmail:** Módulo para gerir contas de email associadas a colaboradores ou setores.
-- **Controlo de Movimentações:** Registo de todo o histórico de um aparelho, incluindo entregas, devoluções e envios para manutenção.
-- **Geração de Documentos em PDF:**
-    - Criação de **Termos de Responsabilidade** profissionais para a entrega de aparelhos.
-    - Layout personalizável com logo, checklist de entrega e campos editáveis antes da geração.
-- **Interface Moderna:** Tabelas com edição direta de dados e secções que podem ser minimizadas para uma melhor experiência de utilizador.
+- **Sistema de Login Seguro:** Acesso protegido com hashing de senhas e diferentes níveis de permissão (Administrador, Editor, Leitor).
+- **Gestão de Utilizadores:** Um painel administrativo dedicado para criar, visualizar e editar os utilizadores do sistema.
+- **Interface Moderna e Editável:** A maioria das tabelas de gestão permite a edição direta dos dados, tornando as atualizações rápidas e intuitivas. As listas podem ser minimizadas para uma interface mais limpa.
 
-##  Como Executar Localmente
+---
+
+### Módulos Detalhados
+
+#### Gestão de Cadastros
+- **Aparelhos:** Registo de novos equipamentos com número de série, IMEI, modelo e valor.
+- **Colaboradores:** Gestão completa dos funcionários, com código, setor e contactos.
+- **Itens de Referência:** Cadastro centralizado de Marcas, Modelos e Setores para manter a consistência dos dados.
+- **Contas Gmail:** Módulo para gerir contas de email associadas a colaboradores ou setores.
+
+#### ⚙Fluxo de Manutenção Completo
+- **Abertura de Ordem de Serviço (O.S.):** Envie aparelhos para reparo, registando o fornecedor, o defeito e o último colaborador responsável.
+- **Acompanhamento:** Visualize e edite todas as O.S. que estão em andamento.
+- **Fecho de O.S.:** Registe o retorno do aparelho, a solução aplicada, o custo do reparo e defina o seu novo status no inventário (de volta ao estoque ou baixado).
+
+#### Geração de Documentos Profissionais em PDF
+- **Termo de Responsabilidade (Entrega):**
+    - **Checkout Flexível:** Antes de gerar, um formulário de checkout permite editar todas as informações do termo (dados do colaborador, do aparelho, código do termo, etc.).
+    - **Checklist Detalhado:** Preencha um checklist completo sobre o estado de cada item entregue.
+    - **Design Profissional:** O PDF é gerado com um layout moderno, utilizando a identidade visual da empresa (logo e cores), com uma aparência limpa e profissional, pronto para ser impresso e assinado.
+
+---
+
+## Como Executar Localmente
 
 1.  **Clone o repositório:**
     ```bash
