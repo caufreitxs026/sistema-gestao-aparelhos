@@ -12,17 +12,16 @@ if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.stop()
 
 # --- Logo da Mirasol em Base64 ---
-LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAASwAAACACAYAAACx28soAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARTSURBVHhe7d3/S9t3fcfxL9wN3Y1u0I2b3U2n053pZJrdcTqd6UwnO9Npd3fT6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9.png"
+LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAASwAAACACAYAAACx28soAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARTSURBVHhe7d3/S9t3fcfxL9wN3Y1u0I2b3U2n053pZJrdcTqd6UwnO9Npd3fT6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9.png"
 
-# --- Classe para gerar o PDF com Design ---
+# --- Classe para gerar o PDF com Novo Design ---
 class PDF(FPDF):
     def header(self):
         try:
             image_data = base64.b64decode(LOGO_BASE64)
             image_file = io.BytesIO(image_data)
             self.image(image_file, x=10, y=8, w=50)
-        except Exception as e:
-            st.error(f"Erro ao carregar a logo: {e}")
+        except Exception:
             self.set_font('Arial', 'B', 10)
             self.cell(40, 10, 'LOGO', 1, 0, 'C')
         
@@ -47,26 +46,25 @@ class PDF(FPDF):
         self.set_font('Arial', 'B', 12)
         self.set_fill_color(0, 51, 102)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 8, title, 1, 1, 'C', fill=True)
-        self.set_text_color(0, 0, 0)
+        self.cell(0, 8, title, 0, 1, 'L', fill=True)
+        self.ln(2)
 
-    def section_body(self, data):
+    def draw_line(self):
+        self.set_draw_color(220, 220, 220) # Cinza claro
+        self.cell(0, 0, '', 'T', 1)
+        self.ln(2)
+
+    def info_line(self, label, value):
+        self.set_font('Arial', 'B', 10)
+        self.cell(30, 7, f" {label}:", 0, 0)
         self.set_font('Arial', '', 10)
-        for key, value in data.items():
-            self.cell(95, 7, f" {key}: {value}", 1, 1 if 'CPF' in key or 'EMAIL' in key else 0)
-        if len(data) % 2 != 0: self.ln()
+        self.cell(0, 7, f" {value}", 0, 1)
 
 # --- Funções do DB ---
 def get_db_connection():
     conn = sqlite3.connect('inventario.db')
     conn.row_factory = sqlite3.Row
     return conn
-
-def carregar_setores():
-    conn = get_db_connection()
-    setores = conn.execute("SELECT nome_setor FROM setores ORDER BY nome_setor").fetchall()
-    conn.close()
-    return [s['nome_setor'] for s in setores]
 
 def buscar_dados_termo(mov_id):
     conn = get_db_connection()
@@ -96,29 +94,36 @@ def gerar_pdf_termo(dados, checklist_data):
     pdf.ln(5)
 
     pdf.section_title('DADOS DO COLABORADOR')
-    pdf.section_body({'NOME': dados['nome_completo'], 'CPF': dados['cpf'], 'SETOR': dados['nome_setor'], 'EMAIL': dados['gmail']})
+    pdf.info_line('NOME', dados['nome_completo'])
+    pdf.info_line('CPF', dados['cpf'])
+    pdf.info_line('SETOR', dados['nome_setor'])
+    pdf.info_line('EMAIL', dados['gmail'])
     pdf.ln(5)
+
     pdf.section_title('DADOS DO SMARTPHONE')
-    pdf.section_body({'MARCA': dados['nome_marca'], 'MODELO': dados['nome_modelo'], 'IMEI 1': dados['imei1'], 'IMEI 2': dados['imei2']})
+    pdf.info_line('MARCA', dados['nome_marca'])
+    pdf.info_line('MODELO', dados['nome_modelo'])
+    pdf.info_line('IMEI 1', dados['imei1'])
+    pdf.info_line('IMEI 2', dados['imei2'])
     pdf.ln(5)
 
     pdf.section_title('DOCUMENTAÇÃO')
     pdf.set_font('Arial', '', 8)
     texto_doc = "Declaro para os devidos fins que os materiais registrados nesta ficha encontram-se em meu poder para uso em minhas atividades, cabendo-me a responsabilidade por sua guarda e conservação... (Art. 462 CLT). Declaro estar ciente e de acordo com a utilização de meus dados pessoais neste documento, para fins de controle."
-    pdf.multi_cell(0, 5, texto_doc, 1, 'J')
+    pdf.multi_cell(0, 5, texto_doc, 0, 'J')
     pdf.ln(5)
 
     pdf.section_title('CHECKLIST DE RECEBIMENTO')
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(95, 6, 'ITEM', 1, 0, 'C')
-    pdf.cell(47.5, 6, 'ENTREGA', 1, 0, 'C')
-    pdf.cell(47.5, 6, 'ESTADO', 1, 1, 'C')
+    pdf.cell(95, 6, 'ITEM', 'B', 0, 'L')
+    pdf.cell(47.5, 6, 'ENTREGA', 'B', 0, 'C')
+    pdf.cell(47.5, 6, 'ESTADO', 'B', 1, 'C')
     pdf.set_font('Arial', '', 10)
     for item, detalhes in checklist_data.items():
-        pdf.cell(95, 6, item, 1, 0)
-        pdf.cell(47.5, 6, 'SIM' if detalhes['entregue'] else 'NÃO', 1, 0, 'C')
-        pdf.cell(47.5, 6, detalhes['estado'], 1, 1, 'C')
-    pdf.ln(15)
+        pdf.cell(95, 6, item, 'B', 0)
+        pdf.cell(47.5, 6, 'SIM' if detalhes['entregue'] else 'NÃO', 'B', 0, 'C')
+        pdf.cell(47.5, 6, detalhes['estado'], 'B', 1, 'C')
+    pdf.ln(25)
 
     pdf.cell(0, 10, '_________________________________________', 0, 1, 'C')
     pdf.cell(0, 5, dados['nome_completo'], 0, 1, 'C')
@@ -149,8 +154,7 @@ else:
             dados_termo['nome_completo'] = st.text_input("Nome", value=dados_termo['nome_completo'])
             dados_termo['cpf'] = st.text_input("CPF", value=dados_termo['cpf'])
             
-            # Carrega os setores e define o índice do setor atual
-            setores_options = carregar_setores()
+            setores_options = [s['nome_setor'] for s in get_db_connection().execute("SELECT nome_setor FROM setores").fetchall()]
             current_sector_index = setores_options.index(dados_termo['nome_setor']) if dados_termo['nome_setor'] in setores_options else 0
             dados_termo['nome_setor'] = st.selectbox("Setor", options=setores_options, index=current_sector_index)
             
@@ -173,7 +177,7 @@ else:
                 estado = col2.selectbox(f"Estado de {item}", options=opcoes_estado, key=f"estado_{item}")
                 checklist_data[item] = {'entregue': entregue, 'estado': estado}
 
-            submitted = st.form_submit_button("Gerar Terme em PDF")
+            submitted = st.form_submit_button("Gerar Termo em PDF")
             if submitted:
                 pdf_bytes = gerar_pdf_termo(dados_termo, checklist_data)
                 st.session_state['pdf_gerado'] = pdf_bytes
