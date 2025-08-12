@@ -13,12 +13,12 @@ def limpar_dados_transacionais():
 
         # Lista de tabelas a serem limpas
         tabelas_para_limpar = [
-            'historico_movimentacoes',
-            'manutencoes',
-            'aparelhos',
-            'colaboradores',
-            'contas_gmail',
-            'modelos'
+            #'historico_movimentacoes',
+            #'manutencoes',
+            #'aparelhos',
+            #'colaboradores',
+            #'contas_gmail',
+            #'modelos'
         ]
 
         for tabela in tabelas_para_limpar:
@@ -48,3 +48,4 @@ if __name__ == '__main__':
         limpar_dados_transacionais()
     else:
         print("Operação de limpeza cancelada.")
+
