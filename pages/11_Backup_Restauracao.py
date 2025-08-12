@@ -4,11 +4,9 @@ from datetime import datetime
 import io
 
 # --- Autenticação e Permissão ---
-# Se o utilizador não estiver logado, redireciona para a página principal de login
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# Apenas Administradores podem aceder a esta página
 if st.session_state.get('user_role') != 'Administrador':
     st.error("Acesso negado. Apenas administradores podem aceder a esta página.")
     st.stop()
@@ -22,12 +20,9 @@ def gerar_backup_sql():
     """
     try:
         conn = sqlite3.connect('inventario.db')
-        
-        # Usa a função iterdump() para gerar o script SQL
         script_sql = ""
         for line in conn.iterdump():
             script_sql += f'{line}\n'
-            
         conn.close()
         return script_sql
     except Exception as e:
@@ -36,22 +31,30 @@ def gerar_backup_sql():
 
 def restaurar_backup_sql(sql_script):
     """
-    Executa um script SQL para restaurar o banco de dados.
-    Atenção: Esta ação apaga os dados atuais.
+    Executa um script SQL para restaurar o banco de dados de forma mais robusta.
     """
+    conn = None # Inicializa a variável de conexão
     try:
-        conn = sqlite3.connect('inventario.db')
+        # Conecta com um timeout maior para esperar por bloqueios
+        conn = sqlite3.connect('inventario.db', timeout=15.0)
         cursor = conn.cursor()
+        
+        # Pede um bloqueio exclusivo no banco de dados para evitar conflitos
+        cursor.execute('BEGIN EXCLUSIVE')
         
         # Executa o script SQL completo
         cursor.executescript(sql_script)
         
         conn.commit()
-        conn.close()
         return True
     except Exception as e:
+        if conn:
+            conn.rollback() # Desfaz quaisquer alterações parciais em caso de erro
         st.error(f"Ocorreu um erro durante a restauração: {e}")
         return False
+    finally:
+        if conn:
+            conn.close()
 
 # --- UI ---
 st.title("Backup e Restauração do Sistema")
@@ -65,11 +68,9 @@ if st.button("Gerar e Preparar Backup para Download"):
     with st.spinner("Gerando script de backup..."):
         backup_script = gerar_backup_sql()
         if backup_script:
-            # Armazena o script no estado da sessão para o botão de download
             st.session_state['backup_data'] = backup_script
             st.success("Backup gerado com sucesso! Clique no botão abaixo para baixar.")
 
-# O botão de download só aparece se o backup foi gerado
 if 'backup_data' in st.session_state and st.session_state['backup_data']:
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     st.download_button(
@@ -78,9 +79,7 @@ if 'backup_data' in st.session_state and st.session_state['backup_data']:
         file_name=f"backup_inventario_{timestamp}.sql",
         mime="application/sql"
     )
-    # Limpa o estado após o botão ser exibido
     st.session_state['backup_data'] = None
-
 
 st.markdown("---")
 
@@ -91,14 +90,12 @@ st.error("⚠️ **Atenção:** A restauração irá **APAGAR TODOS OS DADOS ATU
 uploaded_file = st.file_uploader("Escolha um ficheiro de backup (.sql) para restaurar", type="sql")
 
 if uploaded_file is not None:
-    # Lê o conteúdo do ficheiro
     sql_script_bytes = uploaded_file.getvalue()
     sql_script = sql_script_bytes.decode('utf-8')
     
     st.text_area("Conteúdo do Script (pré-visualização)", sql_script, height=200)
 
     if st.button("Iniciar Restauração"):
-        # Confirmação final
         if 'confirm_restore' not in st.session_state:
             st.session_state.confirm_restore = True
         
@@ -110,7 +107,6 @@ if uploaded_file is not None:
                 if restaurar_backup_sql(sql_script):
                     st.success("Restauração concluída com sucesso! A aplicação será reiniciada.")
                     st.session_state.confirm_restore = False
-                    # Força um rerun para refletir o estado restaurado
                     st.rerun()
                 else:
                     st.error("A restauração falhou. Verifique os logs para mais detalhes.")
