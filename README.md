@@ -1,11 +1,11 @@
-# Sistema de Gestão de Aparelhos v2.1
+# Sistema de Gestão de Aparelhos v2.2
 
-Uma aplicação web completa construída com Python e Streamlit para gerir o ciclo de vida de aparelhos eletrónicos (smartphones, etc.) numa empresa, desde a aquisição até à baixa, com fluxos de trabalho inteligentes para manutenção e devolução.
+Uma aplicação web completa e robusta construída com Python e Streamlit para gerir todo o ciclo de vida de ativos de TI (smartphones, etc.) numa empresa, com fluxos de trabalho inteligentes e funcionalidades de gestão em massa.
 
 ## Funcionalidades Principais
 
 - **Dashboard Gerencial:** Visualização rápida dos principais indicadores (KPIs) do inventário.
-- **Sistema de Login Seguro:** Acesso protegido com hashing de senhas e diferentes níveis de permissão (Administrador, etc.).
+- **Sistema de Login Seguro:** Acesso protegido com hashing de senhas e diferentes níveis de permissão.
 - **Gestão de Utilizadores:** Painel administrativo para criar e gerir os acessos ao sistema.
 - **Interface Moderna e Editável:** A maioria das tabelas de gestão permite a edição direta dos dados, tornando as atualizações rápidas e intuitivas.
 
@@ -14,25 +14,22 @@ Uma aplicação web completa construída com Python e Streamlit para gerir o cic
 ### Módulos e Fluxos de Trabalho Inteligentes
 
 #### Gestão de Cadastros
-- **Aparelhos, Colaboradores, Marcas, Modelos, Setores:** Controlo total sobre todas as entidades do inventário.
-- **Contas Gmail:** Módulo para gerir contas de email associadas a colaboradores ou setores.
+- **Controlo Total:** Gestão completa de Aparelhos, Colaboradores, Marcas, Modelos, Setores e Contas Gmail.
 
-#### **Novo!** Fluxo de Devolução e Triagem
-- **Processo Guiado:** Uma página dedicada para registar a devolução de um aparelho que estava em uso.
-- **Checklist de Inspeção:** Registo permanente da condição de cada item do aparelho no momento da devolução.
-- **Decisão de Destino Inteligente:** Com base na inspeção, o sistema guia o utilizador a:
-    - **Devolver ao Estoque:** Desvinculando automaticamente o colaborador.
-    - **Enviar para Manutenção:** Mantendo o vínculo com o colaborador para controlo de custos e responsabilidade.
-    - **Baixar/Inutilizar:** Retirando o aparelho do inventário ativo.
+#### Fluxo de Devolução e Triagem
+- **Processo Guiado:** Uma página dedicada para registar a devolução de um aparelho, com checklist de inspeção e decisão de destino (Estoque, Manutenção ou Baixa).
+- **Integração Inteligente:** Mantém o vínculo do aparelho com o colaborador durante a manutenção para controlo de custos.
 
 #### Fluxo de Manutenção Completo
-- **Integração com Devoluções:** Aparelhos designados para reparo no fluxo de devolução aparecem prontos para o próximo passo.
-- **Abertura e Fecho de Ordem de Serviço (O.S.):** Controlo total sobre o envio para fornecedores, registo de custos e solução aplicada.
+- **Controlo de O.S.:** Abertura, acompanhamento e fecho de Ordens de Serviço, com registo de fornecedores, custos e soluções.
 
 #### Geração de Documentos Profissionais em PDF
-- **Termo de Responsabilidade (Entrega):**
-    - **Checkout Flexível:** Um formulário de checkout permite editar todas as informações do termo antes de o gerar.
-    - **Design Profissional:** O PDF é gerado com um layout moderno, utilizando a identidade visual da empresa (logo e cores), pronto para ser impresso e assinado.
+- **Termo de Responsabilidade:** Criação de termos de entrega com design profissional, logo da empresa e um fluxo de "checkout" para edição antes de gerar o PDF.
+
+#### **Novo!** Importação de Dados em Lote
+- **Página Dedicada:** Uma nova secção para importar dados em massa a partir de planilhas Excel (.xlsx).
+- **Download de Modelos:** Para cada tipo de registo (Colaboradores, Aparelhos, etc.), o sistema oferece um modelo de planilha com exemplos para garantir o preenchimento correto.
+- **Validação Inteligente:** O sistema valida os dados durante o upload, reportando sucessos e erros linha a linha, garantindo a integridade da base de dados.
 
 ---
 
@@ -60,4 +57,5 @@ Uma aplicação web completa construída com Python e Streamlit para gerir o cic
 
 ---
 *LinkedIn: https://linkedin.com/in/cauafreitas*
+
 *Instagram: Caufreitxs*
