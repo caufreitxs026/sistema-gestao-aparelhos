@@ -4,10 +4,10 @@ import sqlite3
 from datetime import datetime
 from auth import show_login_form
 
-# --- Verificação de Autenticação ---
+# --- Autenticação ---
+# Se o utilizador não estiver logado, redireciona para a página principal de login
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
-    show_login_form()
-    st.stop()
+    st.switch_page("app.py")
 
 # --- Configurações da Página ---
 st.set_page_config(page_title="Movimentações", layout="wide")

@@ -3,10 +3,10 @@ import sqlite3
 import pandas as pd
 from auth import show_login_form, hash_password # Importa a função de hash
 
-# --- Verificação de Autenticação e Permissão ---
+# --- Autenticação ---
+# Se o utilizador não estiver logado, redireciona para a página principal de login
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
-    show_login_form()
-    st.stop()
+    st.switch_page("app.py")
 
 # Verifica se o usuário é Administrador
 if st.session_state.get('user_role') != 'Administrador':
