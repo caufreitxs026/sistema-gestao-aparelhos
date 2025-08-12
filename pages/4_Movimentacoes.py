@@ -109,15 +109,16 @@ with st.form("form_movimentacao", clear_on_submit=True):
     opcoes_aparelho_filtradas = {k: v for k, v in aparelhos_dict.items() if filtro_aparelho.lower() in k.lower()}
     aparelho_selecionado_str = st.selectbox("Selecione o Aparelho*", options=opcoes_aparelho_filtradas.keys())
 
-    # --- Pesquisa e seleção de Colaborador ---
-    filtro_colaborador = st.text_input("Pesquisar Colaborador")
+    # --- Seleção de Colaborador (sem campo de pesquisa extra) ---
     colaboradores_dict = {col['nome_completo']: col['id'] for col in colaboradores_list}
-    opcoes_colaborador_filtradas = {k: v for k, v in colaboradores_dict.items() if filtro_colaborador.lower() in k.lower()}
-    
-    # Adiciona a opção "Nenhum" no topo da lista filtrada
     opcoes_colaborador_com_nenhum = {"Nenhum": None}
-    opcoes_colaborador_com_nenhum.update(opcoes_colaborador_filtradas)
-    colaborador_selecionado_str = st.selectbox("Atribuir ao Colaborador", options=opcoes_colaborador_com_nenhum.keys())
+    opcoes_colaborador_com_nenhum.update(colaboradores_dict)
+    
+    colaborador_selecionado_str = st.selectbox(
+        "Atribuir ao Colaborador",
+        options=opcoes_colaborador_com_nenhum.keys(),
+        help="Clique na lista e comece a digitar para pesquisar um colaborador."
+    )
     
     # --- Outros campos ---
     status_dict = {s['nome_status']: s['id'] for s in status_list}
