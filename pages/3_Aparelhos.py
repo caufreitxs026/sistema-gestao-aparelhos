@@ -4,8 +4,7 @@ import sqlite3
 from datetime import date
 from auth import show_login_form
 
-# --- Autenticação ---
-# Se o utilizador não estiver logado, redireciona para a página principal de login
+# --- Verificação de Autenticação ---
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
@@ -46,7 +45,7 @@ def adicionar_aparelho_e_historico(serie, imei1, imei2, valor, modelo_id, status
         aparelho_id = cursor.lastrowid
         cursor.execute(
             "INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, status_id, localizacao_atual, observacoes) VALUES (?, ?, ?, ?, ?)",
-            (data_hoje, aparelho_id, status_id, "Estoque Interno", "Entrada inicial no sistema.")
+            (date.today(), aparelho_id, status_id, "Estoque Interno", "Entrada inicial no sistema.")
         )
         conn.commit()
         st.success(f"Aparelho N/S '{serie}' cadastrado com sucesso!")
@@ -60,15 +59,35 @@ def adicionar_aparelho_e_historico(serie, imei1, imei2, valor, modelo_id, status
         conn.close()
 
 def carregar_inventario_completo():
+    """
+    Carrega uma visão completa do inventário, incluindo o responsável atual pelo aparelho.
+    """
     conn = get_db_connection()
     df = pd.read_sql_query("""
+        WITH UltimoResponsavel AS (
+            SELECT
+                h.aparelho_id,
+                h.colaborador_id,
+                ROW_NUMBER() OVER(PARTITION BY h.aparelho_id ORDER BY h.data_movimentacao DESC) as rn
+            FROM historico_movimentacoes h
+        )
         SELECT 
-            a.id, a.numero_serie, ma.nome_marca, mo.nome_modelo, s.nome_status,
-            a.valor, a.imei1, a.imei2, a.data_cadastro
+            a.id,
+            a.numero_serie,
+            ma.nome_marca,
+            mo.nome_modelo,
+            s.nome_status,
+            c.nome_completo as responsavel_atual,
+            a.valor,
+            a.imei1,
+            a.imei2,
+            a.data_cadastro
         FROM aparelhos a
         LEFT JOIN modelos mo ON a.modelo_id = mo.id
         LEFT JOIN marcas ma ON mo.marca_id = ma.id
         LEFT JOIN status s ON a.status_id = s.id
+        LEFT JOIN UltimoResponsavel ur ON a.id = ur.aparelho_id AND ur.rn = 1
+        LEFT JOIN colaboradores c ON ur.colaborador_id = c.id
         ORDER BY a.data_cadastro DESC
     """, conn)
     conn.close()
@@ -123,6 +142,7 @@ with col2:
                 "nome_marca": st.column_config.TextColumn("Marca", disabled=True),
                 "nome_modelo": st.column_config.TextColumn("Modelo", disabled=True),
                 "nome_status": st.column_config.TextColumn("Status Atual", disabled=True),
+                "responsavel_atual": st.column_config.TextColumn("Responsável Atual", disabled=True),
                 "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
                 "imei1": st.column_config.TextColumn("IMEI 1", disabled=True),
                 "imei2": st.column_config.TextColumn("IMEI 2", disabled=True),
@@ -141,4 +161,3 @@ with col2:
                     if atualizar_aparelho(aparelho_id, novo_valor):
                         st.toast(f"Aparelho N/S '{row['numero_serie']}' atualizado!", icon="✅")
             st.rerun()
-
