@@ -2,3 +2,4 @@ streamlit
 pandas
 fpdf2
 plotly
+openpyxl
