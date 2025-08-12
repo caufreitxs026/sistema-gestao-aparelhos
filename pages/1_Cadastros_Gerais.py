@@ -45,6 +45,7 @@ def atualizar_marca(marca_id, nome_marca):
     conn.execute("UPDATE marcas SET nome_marca = ? WHERE id = ?", (nome_marca, marca_id))
     conn.commit()
     conn.close()
+    return True
 
 # --- Funções para Modelos ---
 def carregar_modelos():
@@ -71,6 +72,13 @@ def adicionar_modelo(nome_modelo, marca_id):
     except Exception as e:
         st.error(f"Ocorreu um erro ao adicionar o modelo: {e}")
 
+def atualizar_modelo(modelo_id, nome_modelo, marca_id):
+    conn = get_db_connection()
+    conn.execute("UPDATE modelos SET nome_modelo = ?, marca_id = ? WHERE id = ?", (nome_modelo, marca_id, modelo_id))
+    conn.commit()
+    conn.close()
+    return True
+
 # --- Funções para Setores ---
 def carregar_setores():
     conn = get_db_connection()
@@ -96,6 +104,7 @@ def atualizar_setor(setor_id, nome_setor):
     conn.execute("UPDATE setores SET nome_setor = ? WHERE id = ?", (nome_setor, setor_id))
     conn.commit()
     conn.close()
+    return True
 
 
 # --- Interface do Usuário ---
@@ -111,27 +120,50 @@ with tab1:
             if st.form_submit_button("Adicionar Marca"):
                 adicionar_marca(novo_nome_marca)
         
-        with st.expander("Ver e Editar Marcas"):
+        with st.expander("Ver e Editar Marcas", expanded=True):
             marcas_df = carregar_marcas()
             edited_marcas_df = st.data_editor(marcas_df, key="edit_marcas", hide_index=True, disabled=["id"])
             if st.button("Salvar Alterações de Marcas"):
-                # Lógica para salvar alterações
+                for index, row in edited_marcas_df.iterrows():
+                    original_row = marcas_df.loc[index]
+                    if not row.equals(original_row):
+                        if atualizar_marca(row['id'], row['nome_marca']):
+                            st.toast(f"Marca '{row['nome_marca']}' atualizada!", icon="✅")
                 st.rerun()
 
     with col2:
         st.subheader("Modelos")
+        marcas_df = carregar_marcas()
+        marcas_dict = {row['nome_marca']: row['id'] for index, row in marcas_df.iterrows()}
+
         with st.form("form_novo_modelo", clear_on_submit=True):
             novo_nome_modelo = st.text_input("Cadastrar novo modelo")
-            marcas_list = carregar_marcas().to_dict('records')
-            marcas_dict = {marca['nome_marca']: marca['id'] for marca in marcas_list}
             marca_selecionada_nome = st.selectbox("Selecione a Marca", options=marcas_dict.keys())
             if st.form_submit_button("Adicionar Modelo"):
                 if marca_selecionada_nome:
                     adicionar_modelo(novo_nome_modelo, marcas_dict[marca_selecionada_nome])
 
-        with st.expander("Ver Modelos"):
+        with st.expander("Ver e Editar Modelos", expanded=True):
             modelos_df = carregar_modelos()
-            st.dataframe(modelos_df, hide_index=True, use_container_width=True)
+            edited_modelos_df = st.data_editor(
+                modelos_df,
+                column_config={
+                    "id": st.column_config.NumberColumn("ID", disabled=True),
+                    "nome_modelo": st.column_config.TextColumn("Modelo", required=True),
+                    "nome_marca": st.column_config.SelectboxColumn(
+                        "Marca", options=marcas_dict.keys(), required=True
+                    )
+                },
+                hide_index=True, key="edit_modelos"
+            )
+            if st.button("Salvar Alterações de Modelos"):
+                for index, row in edited_modelos_df.iterrows():
+                    original_row = modelos_df.loc[index]
+                    if not row.equals(original_row):
+                        nova_marca_id = marcas_dict[row['nome_marca']]
+                        if atualizar_modelo(row['id'], row['nome_modelo'], nova_marca_id):
+                            st.toast(f"Modelo '{row['nome_modelo']}' atualizado!", icon="✅")
+                st.rerun()
 
 
 with tab2:
@@ -144,10 +176,13 @@ with tab2:
                 adicionar_setor(novo_nome_setor)
     
     with col2_setor:
-        with st.expander("Ver e Editar Setores"):
+        with st.expander("Ver e Editar Setores", expanded=True):
             setores_df = carregar_setores()
             edited_setores_df = st.data_editor(setores_df, key="edit_setores", hide_index=True, disabled=["id"])
             if st.button("Salvar Alterações de Setores"):
-                # Lógica para salvar alterações
+                for index, row in edited_setores_df.iterrows():
+                    original_row = setores_df.loc[index]
+                    if not row.equals(original_row):
+                        if atualizar_setor(row['id'], row['nome_setor']):
+                            st.toast(f"Setor '{row['nome_setor']}' atualizado!", icon="✅")
                 st.rerun()
-
