@@ -31,7 +31,7 @@ def gerar_backup_sql():
 
 def restaurar_backup_sql(sql_script):
     """
-    Executa um script SQL para restaurar o banco de dados de forma mais robusta.
+    Apaga as tabelas existentes e executa um script SQL para restaurar o banco de dados.
     """
     conn = None # Inicializa a variável de conexão
     try:
@@ -42,7 +42,20 @@ def restaurar_backup_sql(sql_script):
         # Pede um bloqueio exclusivo no banco de dados para evitar conflitos
         cursor.execute('BEGIN EXCLUSIVE')
         
-        # Executa o script SQL completo
+        # --- CORREÇÃO: Apagar tabelas existentes antes de restaurar ---
+        # 1. Obter a lista de todas as tabelas
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = cursor.fetchall()
+        
+        # 2. Desativar temporariamente as chaves estrangeiras para permitir apagar
+        cursor.execute("PRAGMA foreign_keys = OFF;")
+        
+        # 3. Apagar cada tabela
+        for table_name in tables:
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name[0]}")
+        
+        # 4. Executa o script SQL completo do backup, que irá recriar tudo
+        # O script gerado pelo iterdump já reativa as foreign_keys.
         cursor.executescript(sql_script)
         
         conn.commit()
