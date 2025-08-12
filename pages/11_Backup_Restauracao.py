@@ -95,10 +95,12 @@ if uploaded_file is not None:
     
     st.text_area("Conteúdo do Script (pré-visualização)", sql_script, height=200)
 
+    # Este botão agora apenas define o estado de confirmação e força um rerun.
     if st.button("Iniciar Restauração"):
-        if 'confirm_restore' not in st.session_state:
-            st.session_state.confirm_restore = True
+        st.session_state.confirm_restore = True
+        st.rerun()
         
+    # Este bloco será executado numa nova execução do script, mostrando a confirmação.
     if st.session_state.get('confirm_restore'):
         st.warning("Tem a certeza absoluta de que deseja continuar? Todos os dados atuais serão perdidos.")
         col1, col2 = st.columns(2)
