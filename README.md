@@ -5,7 +5,7 @@ Uma aplicação web completa e robusta construída com Python e Streamlit para g
 ## Funcionalidades Principais
 
 - **Dashboard Gerencial:** Visualização rápida dos principais indicadores (KPIs) do inventário.
-- **Sistema de Login Seguro:** Acesso protegido com hashing de senhas e diferentes níveis de permissão.
+- **Sistema de Login Seguro:** Acesso protegido com hashing de senhas e diferentes níveis de permissão (Administrador, etc.).
 - **Gestão de Utilizadores:** Painel administrativo para criar e gerir os acessos ao sistema.
 - **Interface Moderna e Editável:** A maioria das tabelas de gestão permite a edição direta dos dados, tornando as atualizações rápidas e intuitivas.
 
@@ -30,6 +30,11 @@ Uma aplicação web completa e robusta construída com Python e Streamlit para g
 - **Página Dedicada:** Uma nova secção para importar dados em massa a partir de planilhas Excel (.xlsx).
 - **Download de Modelos:** Para cada tipo de registo (Colaboradores, Aparelhos, etc.), o sistema oferece um modelo de planilha com exemplos para garantir o preenchimento correto.
 - **Validação Inteligente:** O sistema valida os dados durante o upload, reportando sucessos e erros linha a linha, garantindo a integridade da base de dados.
+
+#### **Novo!** Backup e Restauração
+- **Painel Administrativo:** Uma página segura, acessível apenas por administradores, para criar e restaurar backups completos do sistema.
+- **Backup com Um Clique:** Gere um ficheiro `.sql` completo de todo o banco de dados para guardar num local seguro.
+- **Restauração Segura:** Faça o upload de um ficheiro de backup para restaurar o sistema a um ponto anterior, com múltiplas confirmações para evitar a perda acidental de dados.
 
 ---
 
