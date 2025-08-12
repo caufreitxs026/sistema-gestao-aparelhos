@@ -1,12 +1,16 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from auth import show_login_form
 
-# --- Autenticação ---
-# Se o utilizador não estiver logado, redireciona para a página principal de login
+# --- Autenticação e Permissão ---
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
+
+# Apenas Administradores podem aceder a esta página
+if st.session_state.get('user_role') != 'Administrador':
+    st.error("Acesso negado. Apenas administradores podem aceder a esta página.")
+    st.stop()
+
 
 # --- Configurações da Página ---
 st.set_page_config(page_title="Cadastros Gerais", layout="wide")
