@@ -17,156 +17,73 @@ if not st.session_state['logged_in']:
 else:
     # --- Se logado, mostra a aplicação completa ---
 
-    # --- Configuração de Layout (Header, Footer e CSS) ---
-import hashlib
-
-def hash_password(password):
-    """Gera um hash seguro para a senha."""
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def check_login(username, password):
-    """Verifica as credenciais do utilizador no banco de dados."""
-    conn = sqlite3.connect('inventario.db')
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
-    hashed_password = hash_password(password)
-    
-    cursor.execute(
-        "SELECT * FROM usuarios WHERE login = ? AND senha = ?",
-        (username, hashed_password)
-    )
-    user = cursor.fetchone()
-    conn.close()
-    
-    if user:
-        st.session_state['logged_in'] = True
-        st.session_state['username'] = user['login']
-        st.session_state['user_role'] = user['cargo']
-        st.session_state['user_name'] = user['nome']
-        return True
-    return False
-
-def show_login_form():
-    """Exibe o formulário de login centralizado e personalizado."""
-    
-    # CSS para a logo e footer da tela de login
+    # --- Configuração de Layout (CSS) ---
     st.markdown("""
     <style>
-        /* Estilos da Logo */
-        .logo-text {
-        .login-logo-text {
+        /* Estilos da Logo na Barra Lateral */
+        .sidebar-logo-text {
             font-family: 'Courier New', monospace;
-            font-size: 28px;
-            font-size: 48px;
+            font-size: 24px;
             font-weight: bold;
-            padding-top: 20px;
             text-align: center;
             margin-bottom: 20px;
         }
-        .logo-asset { color: #003366; }
-        .logo-flow { color: #E30613; }
-        .login-logo-asset { color: #003366; }
-        .login-logo-flow { color: #E30613; }
+        .sidebar-logo-asset { color: #003366; }
+        .sidebar-logo-flow { color: #E30613; }
 
         @media (prefers-color-scheme: dark) {
-            .logo-asset { color: #FFFFFF; }
-            .logo-flow { color: #FF4B4B; }
-            .login-logo-asset { color: #FFFFFF; }
-            .login-logo-flow { color: #FF4B4B; }
+            .sidebar-logo-asset { color: #FFFFFF; }
+            .sidebar-logo-flow { color: #FF4B4B; }
         }
         
         /* Estilos para o footer na barra lateral */
         .sidebar-footer {
-
-        .login-footer {
             text-align: center;
             padding-top: 20px;
             padding-bottom: 20px;
-            margin-top: 30px;
         }
         .sidebar-footer a {
-            margin-right: 15px;
-            text-decoration: none;
-        .login-footer a {
             margin: 0 10px;
         }
         .sidebar-footer img {
-        .login-footer img {
             width: 25px;
             height: 25px;
             filter: grayscale(1) opacity(0.5);
             transition: filter 0.3s;
         }
         .sidebar-footer img:hover {
-        .login-footer img:hover {
             filter: grayscale(0) opacity(1);
         }
         
         @media (prefers-color-scheme: dark) {
             .sidebar-footer img {
-            .login-footer img {
                 filter: grayscale(1) opacity(0.6) invert(1);
             }
             .sidebar-footer img:hover {
-            .login-footer img:hover {
                 filter: opacity(1) invert(1);
             }
         }
     </style>
     """, unsafe_allow_html=True)
 
-    # --- Header (Logo no canto superior esquerdo) ---
-    # Logo
-    st.markdown(
-        """
-        <div class="logo-text">
-            <span class="logo-asset">ASSET</span><span class="logo-flow">FLOW</span>
-        <div class="login-logo-text">
-            <span class="login-logo-asset">ASSET</span><span class="login-logo-flow">FLOW</span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    
-    # Usa colunas para centralizar o formulário
-    col1, col2, col3 = st.columns([1, 1.5, 1])
-    
-    with col2:
-        with st.form("login_form"):
-            st.subheader("Login")
-            username = st.text_input("Utilizador", placeholder="admin")
-            password = st.text_input("Senha", type="password", placeholder="info09@FTP")
-            submitted = st.form_submit_button("Entrar")
-
-            if submitted:
-                if check_login(username, password):
-                    st.rerun()
-                else:
-                    st.error("Utilizador ou senha inválidos.")
-
-    # Footer com ícones (Instagram trocado por LinkedIn)
-    st.markdown(
-        f"""
-        <div class="login-footer">
-            <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
-                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
-            </a>
-            <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
-                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # --- Barra Lateral (Agora contém informações e o footer) ---
+    # --- Barra Lateral (Agora contém tudo) ---
     with st.sidebar:
+        # Logo no topo da barra lateral
+        st.markdown(
+            """
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-asset">ASSET</span><span class="sidebar-logo-flow">FLOW</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
         st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
         st.write(f"Cargo: **{st.session_state['user_role']}**")
         if st.button("Logout"):
             logout()
 
+        # Footer com ícones no fundo da barra lateral
         st.markdown("---")
         st.markdown(
             f"""
@@ -174,8 +91,8 @@ def show_login_form():
                 <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
                     <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
                 </a>
-                <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
-                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+                <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
+                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
                 </a>
             </div>
             """,
@@ -227,10 +144,3 @@ def show_login_form():
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Não há dados de status para exibir.")
-def logout():
-    """Faz o logout do utilizador, limpando a sessão."""
-    st.session_state['logged_in'] = False
-    st.session_state.pop('username', None)
-    st.session_state.pop('user_role', None)
-    st.session_state.pop('user_name', None)
-    st.rerun()
