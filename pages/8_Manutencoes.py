@@ -5,7 +5,6 @@ from datetime import date, datetime
 from auth import show_login_form
 
 # --- Autenticação ---
-# Se o utilizador não estiver logado, redireciona para a página principal de login
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
@@ -20,8 +19,7 @@ def carregar_aparelhos_para_manutencao():
     aparelhos = conn.execute("""
         WITH UltimoHistorico AS (
             SELECT
-                aparelho_id,
-                colaborador_id,
+                aparelho_id, colaborador_id,
                 ROW_NUMBER() OVER(PARTITION BY aparelho_id ORDER BY data_movimentacao DESC) as rn
             FROM historico_movimentacoes
         )
@@ -115,7 +113,6 @@ def atualizar_manutencao(manutencao_id, fornecedor, defeito):
     finally:
         conn.close()
 
-
 # --- UI ---
 st.title("Fluxo de Manutenção")
 st.markdown("---")
@@ -125,20 +122,24 @@ tab1, tab2 = st.tabs(["Abrir Ordem de Serviço", "Acompanhar e Fechar O.S."])
 with tab1:
     st.subheader("1. Enviar Aparelho para Manutenção")
     aparelhos_list = carregar_aparelhos_para_manutencao()
+    
+    filtro_aparelho_manut = st.text_input("Pesquisar Aparelho", key="filtro_manut_abrir")
+    
     aparelhos_dict = {f"{ap['nome_marca']} {ap['nome_modelo']} (S/N: {ap['numero_serie']}) - [Com: {ap['ultimo_colaborador'] or 'Ninguém'}]": ap['id'] for ap in aparelhos_list}
+    opcoes_filtradas_abrir = {k: v for k, v in aparelhos_dict.items() if filtro_aparelho_manut.lower() in k.lower()}
 
-    if not aparelhos_dict:
-        st.info("Nenhum aparelho disponível para enviar para manutenção.")
+    if not opcoes_filtradas_abrir:
+        st.info("Nenhum aparelho disponível para enviar para manutenção (ou correspondente à pesquisa).")
     else:
         with st.form("form_nova_os"):
-            aparelho_selecionado_str = st.selectbox("Selecione o Aparelho*", options=aparelhos_dict.keys())
+            aparelho_selecionado_str = st.selectbox("Selecione o Aparelho*", options=opcoes_filtradas_abrir.keys())
             fornecedor = st.text_input("Fornecedor / Assistência Técnica*")
             defeito = st.text_area("Defeito Reportado*")
             if st.form_submit_button("Abrir Ordem de Serviço"):
                 if not all([aparelho_selecionado_str, fornecedor, defeito]):
                     st.error("Todos os campos são obrigatórios.")
                 else:
-                    aparelho_id = aparelhos_dict[aparelho_selecionado_str]
+                    aparelho_id = opcoes_filtradas_abrir[aparelho_selecionado_str]
                     abrir_ordem_servico(aparelho_id, fornecedor, defeito)
                     st.rerun()
 
@@ -177,8 +178,11 @@ with tab2:
         st.info("Nenhuma O.S. para fechar.")
     else:
         with st.form("form_fechar_os"):
+            filtro_os_fechar = st.text_input("Pesquisar O.S. (por N/S ou modelo)", key="filtro_manut_fechar")
             os_dict = {f"O.S. Nº {row['id']} - {row['nome_modelo']} (S/N: {row['numero_serie']})": row['id'] for index, row in manutencoes_df.iterrows()}
-            os_selecionada_str = st.selectbox("Selecione a Ordem de Serviço para fechar*", options=os_dict.keys())
+            opcoes_filtradas_fechar = {k: v for k, v in os_dict.items() if filtro_os_fechar.lower() in k.lower()}
+
+            os_selecionada_str = st.selectbox("Selecione a Ordem de Serviço para fechar*", options=opcoes_filtradas_fechar.keys())
             solucao = st.text_area("Solução Aplicada / Laudo Técnico*")
             custo = st.number_input("Custo do Reparo (R$)", min_value=0.0, format="%.2f")
             novo_status_final = st.selectbox("Status Final do Aparelho*", ["Em estoque", "Baixado/Inutilizado"])
@@ -187,7 +191,6 @@ with tab2:
                 if not all([os_selecionada_str, solucao]):
                     st.error("Ordem de Serviço e Solução são campos obrigatórios.")
                 else:
-                    os_id = os_dict[os_selecionada_str]
+                    os_id = opcoes_filtradas_fechar[os_selecionada_str]
                     fechar_ordem_servico(os_id, solucao, custo, novo_status_final)
                     st.rerun()
-
