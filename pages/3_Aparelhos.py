@@ -8,7 +8,10 @@ from auth import show_login_form
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- NOVO: Configuração de Layout (Header, Footer e CSS) ---
+# --- Configurações da Página (Movido para o topo) ---
+st.set_page_config(page_title="Gestão de Aparelhos", layout="wide")
+
+# --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
     /* Estilos da Logo */
@@ -93,9 +96,7 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-
-# --- Configurações da Página ---
-st.set_page_config(page_title="Gestão de Aparelhos", layout="wide")
+# --- Conteúdo Principal da Página ---
 st.title("Gestão de Aparelhos")
 st.markdown("---")
 
@@ -160,8 +161,7 @@ def carregar_inventario_completo():
         SELECT 
             a.id,
             a.numero_serie,
-            ma.nome_marca,
-            mo.nome_modelo,
+            ma.nome_marca || ' - ' || mo.nome_modelo as modelo_completo,
             s.nome_status,
             c.nome_completo as responsavel_atual,
             a.valor,
@@ -179,13 +179,20 @@ def carregar_inventario_completo():
     conn.close()
     return df
 
-def atualizar_aparelho(aparelho_id, valor):
+def atualizar_aparelho_completo(aparelho_id, serie, imei1, imei2, valor, modelo_id):
+    """Atualiza todos os campos editáveis de um aparelho."""
     try:
         conn = get_db_connection()
-        conn.execute("UPDATE aparelhos SET valor = ? WHERE id = ?", (valor, aparelho_id))
+        conn.execute(
+            "UPDATE aparelhos SET numero_serie = ?, imei1 = ?, imei2 = ?, valor = ?, modelo_id = ? WHERE id = ?",
+            (serie, imei1, imei2, valor, modelo_id, aparelho_id)
+        )
         conn.commit()
         conn.close()
         return True
+    except sqlite3.IntegrityError:
+        st.error(f"Erro: O Número de Série '{serie}' já pertence a outro aparelho.")
+        return False
     except Exception as e:
         st.error(f"Erro ao atualizar o aparelho ID {aparelho_id}: {e}")
         return False
@@ -193,6 +200,7 @@ def atualizar_aparelho(aparelho_id, valor):
 # --- Interface do Usuário ---
 
 modelos_list, status_list = carregar_dados_para_selects()
+modelos_dict = {f"{m['nome_marca']} - {m['nome_modelo']}": m['id'] for m in modelos_list}
 
 col1, col2 = st.columns([1, 2])
 
@@ -200,8 +208,6 @@ with col1:
     st.subheader("Adicionar Novo Aparelho")
     with st.form("form_novo_aparelho", clear_on_submit=True):
         novo_serie = st.text_input("Número de Série*")
-        
-        modelos_dict = {f"{m['nome_marca']} - {m['nome_modelo']}": m['id'] for m in modelos_list}
         
         modelo_selecionado_str = st.selectbox(
             "Modelo*",
@@ -231,14 +237,17 @@ with col2:
             inventario_df,
             column_config={
                 "id": st.column_config.NumberColumn("ID", disabled=True),
-                "numero_serie": st.column_config.TextColumn("N/S", disabled=True),
-                "nome_marca": st.column_config.TextColumn("Marca", disabled=True),
-                "nome_modelo": st.column_config.TextColumn("Modelo", disabled=True),
+                "numero_serie": st.column_config.TextColumn("N/S", required=True),
+                "modelo_completo": st.column_config.SelectboxColumn(
+                    "Modelo",
+                    options=modelos_dict.keys(),
+                    required=True
+                ),
                 "nome_status": st.column_config.TextColumn("Status Atual", disabled=True),
                 "responsavel_atual": st.column_config.TextColumn("Responsável Atual", disabled=True),
                 "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
-                "imei1": st.column_config.TextColumn("IMEI 1", disabled=True),
-                "imei2": st.column_config.TextColumn("IMEI 2", disabled=True),
+                "imei1": st.column_config.TextColumn("IMEI 1"),
+                "imei2": st.column_config.TextColumn("IMEI 2"),
                 "data_cadastro": st.column_config.DateColumn("Data de Entrada", disabled=True),
             },
             hide_index=True,
@@ -247,12 +256,17 @@ with col2:
         
         if st.button("Salvar Alterações no Inventário"):
             for index, row in edited_df.iterrows():
-                original_row = inventario_df.loc[index]
-                if not row.equals(original_row):
-                    aparelho_id = row['id']
-                    novo_valor = row['valor']
-                    if atualizar_aparelho(aparelho_id, novo_valor):
-                        st.toast(f"Aparelho N/S '{row['numero_serie']}' atualizado!", icon="✅")
+                # Garante que o índice existe no dataframe original antes de comparar
+                if index in inventario_df.index:
+                    original_row = inventario_df.loc[index]
+                    if not row.equals(original_row):
+                        aparelho_id = row['id']
+                        novo_serie = row['numero_serie']
+                        novo_imei1 = row['imei1']
+                        novo_imei2 = row['imei2']
+                        novo_valor = row['valor']
+                        novo_modelo_id = modelos_dict[row['modelo_completo']]
+                        
+                        if atualizar_aparelho_completo(aparelho_id, novo_serie, novo_imei1, novo_imei2, novo_valor, novo_modelo_id):
+                            st.toast(f"Aparelho N/S '{row['numero_serie']}' atualizado!", icon="✅")
             st.rerun()
-
-
