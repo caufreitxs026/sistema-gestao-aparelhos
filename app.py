@@ -5,17 +5,98 @@ import plotly.express as px
 from auth import show_login_form, logout
 
 # --- Configuração inicial da página e do estado da sessão ---
-st.set_page_config(page_title="Gestão de Aparelhos", layout="wide")
+st.set_page_config(page_title="AssetFlow", layout="wide")
 
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
 # --- Lógica de Autenticação ---
-# Se o usuário não estiver logado, mostra apenas o formulário de login.
+# Se o utilizador não estiver logado, mostra apenas o formulário de login.
 if not st.session_state['logged_in']:
     show_login_form()
 else:
     # --- Se logado, mostra a aplicação completa ---
+
+    # --- Configuração de Layout (Header, Footer e CSS) ---
+    st.markdown("""
+    <style>
+        /* Estilos da Logo */
+        .logo-text {
+            font-family: 'Courier New', monospace;
+            font-size: 28px;
+            font-weight: bold;
+            padding-top: 20px;
+        }
+        .logo-asset { color: #003366; }
+        .logo-flow { color: #E30613; }
+
+        @media (prefers-color-scheme: dark) {
+            .logo-asset { color: #FFFFFF; }
+            .logo-flow { color: #FF4B4B; }
+        }
+        
+        /* Estilos para o footer na barra lateral */
+        .sidebar-footer {
+            text-align: center;
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+        .sidebar-footer a {
+            margin-right: 15px;
+            text-decoration: none;
+        }
+        .sidebar-footer img {
+            width: 25px;
+            height: 25px;
+            filter: grayscale(1) opacity(0.5);
+            transition: filter 0.3s;
+        }
+        .sidebar-footer img:hover {
+            filter: grayscale(0) opacity(1);
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .sidebar-footer img {
+                filter: grayscale(1) opacity(0.6) invert(1);
+            }
+            .sidebar-footer img:hover {
+                filter: opacity(1) invert(1);
+            }
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- Header (Logo no canto superior esquerdo) ---
+    st.markdown(
+        """
+        <div class="logo-text">
+            <span class="logo-asset">ASSET</span><span class="logo-flow">FLOW</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # --- Barra Lateral (Agora contém informações e o footer) ---
+    with st.sidebar:
+        st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
+        st.write(f"Cargo: **{st.session_state['user_role']}**")
+        if st.button("Logout"):
+            logout()
+
+        st.markdown("---")
+        st.markdown(
+            f"""
+            <div class="sidebar-footer">
+                <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
+                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
+                </a>
+                <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
+                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+                </a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     # --- Funções do Banco de Dados para o Dashboard ---
     def get_db_connection():
@@ -37,21 +118,9 @@ else:
 
     def carregar_aparelhos_por_status():
         conn = get_db_connection()
-        df = pd.read_sql_query("""
-            SELECT s.nome_status, COUNT(a.id) as quantidade
-            FROM aparelhos a
-            JOIN status s ON a.status_id = s.id
-            GROUP BY s.nome_status
-        """, conn)
+        df = pd.read_sql_query("SELECT s.nome_status, COUNT(a.id) as quantidade FROM aparelhos a JOIN status s ON a.status_id = s.id GROUP BY s.nome_status", conn)
         conn.close()
         return df
-
-    # --- Barra Lateral com Informações do Usuário e Logout ---
-    with st.sidebar:
-        st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
-        st.write(f"Cargo: **{st.session_state['user_role']}**")
-        if st.button("Logout"):
-            logout()
 
     # --- Conteúdo do Dashboard ---
     st.title("Dashboard Gerencial")
@@ -74,5 +143,3 @@ else:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Não há dados de status para exibir.")
-
-
