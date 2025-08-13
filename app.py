@@ -17,12 +17,87 @@ if not st.session_state['logged_in']:
 else:
     # --- Se logado, mostra a aplicação completa ---
 
-    # --- Barra Lateral com Informações do Utilizador e Logout ---
+    # --- Configuração de Layout (CSS) ---
+    st.markdown("""
+    <style>
+        /* Estilos da Logo na Barra Lateral */
+        .sidebar-logo-text {
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .sidebar-logo-asset { color: #003366; }
+        .sidebar-logo-flow { color: #E30613; }
+
+        @media (prefers-color-scheme: dark) {
+            .sidebar-logo-asset { color: #FFFFFF; }
+            .sidebar-logo-flow { color: #FF4B4B; }
+        }
+        
+        /* Estilos para o footer na barra lateral */
+        .sidebar-footer {
+            text-align: center;
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+        .sidebar-footer a {
+            margin: 0 10px;
+        }
+        .sidebar-footer img {
+            width: 25px;
+            height: 25px;
+            filter: grayscale(1) opacity(0.5);
+            transition: filter 0.3s;
+        }
+        .sidebar-footer img:hover {
+            filter: grayscale(0) opacity(1);
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .sidebar-footer img {
+                filter: grayscale(1) opacity(0.6) invert(1);
+            }
+            .sidebar-footer img:hover {
+                filter: opacity(1) invert(1);
+            }
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- Barra Lateral (Agora contém tudo) ---
     with st.sidebar:
+        # Logo no topo da barra lateral
+        st.markdown(
+            """
+            <div class="sidebar-logo-text">
+                <span class="sidebar-logo-asset">ASSET</span><span class="sidebar-logo-flow">FLOW</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
         st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
         st.write(f"Cargo: **{st.session_state['user_role']}**")
         if st.button("Logout"):
             logout()
+
+        # Footer com ícones no fundo da barra lateral
+        st.markdown("---")
+        st.markdown(
+            f"""
+            <div class="sidebar-footer">
+                <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
+                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
+                </a>
+                <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
+                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
+                </a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     # --- Funções do Banco de Dados para o Dashboard ---
     def get_db_connection():
