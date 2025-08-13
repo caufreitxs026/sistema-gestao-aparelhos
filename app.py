@@ -1,22 +1,21 @@
-import streamlit as st
 import pandas as pd
 import sqlite3
 import plotly.express as px
+from auth import show_login_form, build_sidebar # Importa a nova função
 from auth import show_login_form, logout
 
 # --- Configuração inicial da página e do estado da sessão ---
+st.set_page_config(page_title="AssetFlow", layout="wide", initial_sidebar_state="expanded")
 st.set_page_config(page_title="AssetFlow", layout="wide")
 
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
-
-# --- Lógica de Autenticação ---
-# Se o utilizador não estiver logado, mostra apenas o formulário de login.
-if not st.session_state['logged_in']:
-    show_login_form()
+@@ -17,50 +17,129 @@
 else:
     # --- Se logado, mostra a aplicação completa ---
 
+    # 1. Constrói a barra lateral a partir do módulo de autenticação
+    build_sidebar()
     # --- Configuração de Layout (CSS) ---
     st.markdown("""
     <style>
@@ -144,3 +143,4 @@ else:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Não há dados de status para exibir.")
+
