@@ -85,8 +85,8 @@ with st.sidebar:
             <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
                 <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
             </a>
-            <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
-                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+            <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
             </a>
         </div>
         """,
@@ -219,4 +219,5 @@ with col2:
                     if atualizar_conta(conta_id, nova_senha, novo_tel, novo_email_rec, novo_setor_id, novo_col_id):
                         st.toast(f"Conta '{row['email']}' atualizada!", icon="✅")
             st.rerun()
+
 
