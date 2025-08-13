@@ -86,8 +86,8 @@ with st.sidebar:
             <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
                 <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
             </a>
-            <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
-                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+            <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
             </a>
         </div>
         """,
@@ -237,3 +237,4 @@ else:
         if submitted:
             if processar_devolucao(aparelho_id, colaborador_id, checklist_data, destino_final, observacoes):
                 st.rerun()
+
