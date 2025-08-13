@@ -115,11 +115,13 @@ with col1:
     with st.form("form_novo_aparelho", clear_on_submit=True):
         novo_serie = st.text_input("Número de Série*")
         
-        filtro_modelo = st.text_input("Pesquisar Modelo")
         modelos_dict = {f"{m['nome_marca']} - {m['nome_modelo']}": m['id'] for m in modelos_list}
-        opcoes_filtradas = {k: v for k, v in modelos_dict.items() if filtro_modelo.lower() in k.lower()}
         
-        modelo_selecionado_str = st.selectbox("Modelo*", options=opcoes_filtradas.keys())
+        modelo_selecionado_str = st.selectbox(
+            "Modelo*",
+            options=modelos_dict.keys(),
+            help="Clique na lista e comece a digitar para pesquisar."
+        )
         
         novo_imei1 = st.text_input("IMEI 1")
         novo_imei2 = st.text_input("IMEI 2")
@@ -131,7 +133,7 @@ with col1:
             if not novo_serie or not modelo_selecionado_str:
                 st.error("Número de Série e Modelo são campos obrigatórios.")
             else:
-                modelo_id = opcoes_filtradas[modelo_selecionado_str]
+                modelo_id = modelos_dict[modelo_selecionado_str]
                 status_id = status_dict[status_selecionado_str]
                 adicionar_aparelho_e_historico(novo_serie, novo_imei1, novo_imei2, novo_valor, modelo_id, status_id)
 
