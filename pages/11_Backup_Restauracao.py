@@ -11,6 +11,20 @@ if st.session_state.get('user_role') != 'Administrador':
     st.error("Acesso negado. Apenas administradores podem aceder a esta página.")
     st.stop()
 
+# --- Configuração da Barra Lateral ---
+with st.sidebar:
+    st.markdown("---")
+    # Logo com o nome do sistema
+    st.markdown(
+        """
+        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold;">
+            <span style="color: #003366;">ASSET</span><span style="color: #E30613;">FLOW</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
+
 # --- Funções de Backup e Restauração ---
 
 def gerar_backup_sql():
@@ -133,3 +147,4 @@ if uploaded_file is not None:
         if col2.button("Não, cancelar"):
             st.session_state.confirm_restore = False
             st.rerun()
+
