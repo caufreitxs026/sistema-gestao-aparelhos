@@ -1,139 +1,67 @@
 import streamlit as st
+import pandas as pd
 import sqlite3
-import hashlib
+import plotly.express as px
+from auth import show_login_form, build_sidebar # Importa a nova função
 
-def hash_password(password):
-    """Gera um hash seguro para a senha."""
-    return hashlib.sha256(password.encode()).hexdigest()
+# --- Configuração inicial da página e do estado da sessão ---
+st.set_page_config(page_title="AssetFlow", layout="wide", initial_sidebar_state="expanded")
 
-def check_login(username, password):
-    """Verifica as credenciais do utilizador no banco de dados."""
-    conn = sqlite3.connect('inventario.db')
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
-    hashed_password = hash_password(password)
-    
-    cursor.execute(
-        "SELECT * FROM usuarios WHERE login = ? AND senha = ?",
-        (username, hashed_password)
-    )
-    user = cursor.fetchone()
-    conn.close()
-    
-    if user:
-        st.session_state['logged_in'] = True
-        st.session_state['username'] = user['login']
-        st.session_state['user_role'] = user['cargo']
-        st.session_state['user_name'] = user['nome']
-        return True
-    return False
-
-def show_login_form():
-    """Exibe o formulário de login centralizado e personalizado."""
-    # ... (código da função sem alterações) ...
-    st.markdown("""
-    <style>
-        .login-logo-text { font-family: 'Courier New', monospace; font-size: 48px; font-weight: bold; text-align: center; margin-bottom: 20px; }
-        .login-logo-asset { color: #003366; } .login-logo-flow { color: #E30613; }
-        @media (prefers-color-scheme: dark) { .login-logo-asset { color: #FFFFFF; } .login-logo-flow { color: #FF4B4B; } }
-        .login-footer { text-align: center; margin-top: 30px; } .login-footer a { margin: 0 10px; }
-        .login-footer img { width: 25px; height: 25px; filter: grayscale(1) opacity(0.5); transition: filter 0.3s; }
-        .login-footer img:hover { filter: grayscale(0) opacity(1); }
-        @media (prefers-color-scheme: dark) { .login-footer img { filter: grayscale(1) opacity(0.6) invert(1); } .login-footer img:hover { filter: opacity(1) invert(1); } }
-    </style>
-    """, unsafe_allow_html=True)
-    st.markdown("""<div class="login-logo-text"><span class="login-logo-asset">ASSET</span><span class="login-logo-flow">FLOW</span></div>""", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 1.5, 1])
-    with col2:
-        with st.form("login_form"):
-            st.subheader("Login")
-            username = st.text_input("Utilizador", placeholder="admin")
-            password = st.text_input("Senha", type="password", placeholder="info09@FTP")
-            if st.form_submit_button("Entrar"):
-                if check_login(username, password): st.rerun()
-                else: st.error("Utilizador ou senha inválidos.")
-    st.markdown(f"""<div class="login-footer"> ... </div>""", unsafe_allow_html=True)
-
-
-def logout():
-    """Faz o logout do utilizador, limpando a sessão."""
+if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
-    st.session_state.pop('username', None)
-    st.session_state.pop('user_role', None)
-    st.session_state.pop('user_name', None)
-    st.rerun()
 
-def build_sidebar():
-    """Constrói a barra lateral personalizada com logo, navegação e footer."""
-    with st.sidebar:
-        # 1. Logo no topo
-        st.markdown(
-            """
-            <div class="sidebar-logo-text">
-                <span class="sidebar-logo-asset">ASSET</span><span class="sidebar-logo-flow">FLOW</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown("---")
+# --- Lógica de Autenticação ---
+# Se o utilizador não estiver logado, mostra apenas o formulário de login.
+if not st.session_state['logged_in']:
+    show_login_form()
+else:
+    # --- Se logado, mostra a aplicação completa ---
 
-        # 2. Menu de Navegação Customizado
-        st.page_link("app.py", label="Dashboard", icon="📊")
-        st.page_link("pages/1_Cadastros_Gerais.py", label="Cadastros Gerais", icon="🗃️")
-        st.page_link("pages/2_Colaboradores.py", label="Colaboradores", icon="👥")
-        st.page_link("pages/3_Aparelhos.py", label="Aparelhos", icon="📱")
-        st.page_link("pages/4_Movimentacoes.py", label="Movimentações", icon="🔄")
-        st.page_link("pages/5_Contas_Gmail.py", label="Contas Gmail", icon="�")
-        st.page_link("pages/6_Gerar_Documentos.py", label="Gerar Documentos", icon="📄")
-        st.page_link("pages/8_Manutencoes.py", label="Manutenções", icon="🔧")
-        st.page_link("pages/9_Devolucoes.py", label="Devoluções", icon="📦")
-        
-        # Páginas de Admin (só aparecem para administradores)
-        if st.session_state.get('user_role') == 'Administrador':
-            st.markdown("---")
-            st.markdown("**Administração**")
-            st.page_link("pages/7_Gerenciar_Usuarios.py", label="Gerir Utilizadores", icon="🛡️")
-            st.page_link("pages/10_Importar_Exportar.py", label="Importar / Exportar", icon="📤")
-            st.page_link("pages/11_Backup_Restauracao.py", label="Backup e Restauro", icon="💾")
+    # 1. Constrói a barra lateral a partir do módulo de autenticação
+    build_sidebar()
 
-        # 3. Informações do Utilizador e Footer (empurrados para o fundo)
-        # Este CSS garante que o footer fique no fundo da barra lateral
-        st.markdown("""
-            <style>
-                .sidebar .sidebar-content {
-                    display: flex;
-                    flex-direction: column;
-                    min-height: 100%;
-                }
-                .sidebar .sidebar-content .stButton {
-                    width: 100%;
-                }
-                .sidebar-footer-container {
-                    margin-top: auto;
-                    padding-top: 20px;
-                }
-            </style>
-        """, unsafe_allow_html=True)
+    # --- Funções do Banco de Dados para o Dashboard ---
+    def get_db_connection():
+        conn = sqlite3.connect('inventario.db')
+        conn.row_factory = sqlite3.Row
+        return conn
 
-        st.markdown('<div class="sidebar-footer-container">', unsafe_allow_html=True)
-        st.write(f"Utilizador: **{st.session_state['user_name']}**")
-        st.write(f"Cargo: **{st.session_state['user_role']}**")
-        if st.button("Logout"):
-            logout()
+    def carregar_kpis():
+        conn = get_db_connection()
+        total_aparelhos = conn.execute("SELECT COUNT(id) FROM aparelhos").fetchone()[0]
+        valor_total = conn.execute("SELECT SUM(valor) FROM aparelhos").fetchone()[0]
+        total_colaboradores = conn.execute("SELECT COUNT(id) FROM colaboradores").fetchone()[0]
+        conn.close()
+        return {
+            "total_aparelhos": total_aparelhos or 0,
+            "valor_total": valor_total or 0,
+            "total_colaboradores": total_colaboradores or 0
+        }
 
-        st.markdown("---")
-        st.markdown(
-            f"""
-            <div class="sidebar-footer">
-                <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
-                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
-                </a>
-                <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
-                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
-                </a>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+    def carregar_aparelhos_por_status():
+        conn = get_db_connection()
+        df = pd.read_sql_query("SELECT s.nome_status, COUNT(a.id) as quantidade FROM aparelhos a JOIN status s ON a.status_id = s.id GROUP BY s.nome_status", conn)
+        conn.close()
+        return df
+
+    # --- Conteúdo do Dashboard ---
+    st.title("Dashboard Gerencial")
+    st.markdown("---")
+
+    kpis = carregar_kpis()
+    df_status = carregar_aparelhos_por_status()
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total de Aparelhos", f"{kpis['total_aparelhos']:,}".replace(",", "."))
+    col2.metric("Valor Total do Inventário", f"R$ {kpis['valor_total']:,.2f}".replace(",", "v").replace(".", ",").replace("v", "."))
+    col3.metric("Total de Colaboradores", f"{kpis['total_colaboradores']:,}".replace(",", "."))
+
+    st.markdown("---")
+
+    st.subheader("Aparelhos por Status")
+    if not df_status.empty:
+        fig = px.pie(df_status, names='nome_status', values='quantidade', hole=.3)
+        fig.update_traces(textposition='inside', textinfo='percent+label')
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Não há dados de status para exibir.")
