@@ -11,19 +11,91 @@ if st.session_state.get('user_role') != 'Administrador':
     st.error("Acesso negado. Apenas administradores podem aceder a esta página.")
     st.stop()
 
-# --- Configuração da Barra Lateral ---
+# --- NOVO: Configuração de Layout (Header, Footer e CSS) ---
+st.markdown("""
+<style>
+    /* Estilos da Logo */
+    .logo-text {
+        font-family: 'Courier New', monospace;
+        font-size: 28px;
+        font-weight: bold;
+        padding-top: 20px;
+    }
+    /* Cor para o tema claro (padrão) */
+    .logo-asset { color: #003366; }
+    .logo-flow { color: #E30613; }
+
+    /* Cor para o tema escuro (usando media query) */
+    @media (prefers-color-scheme: dark) {
+        .logo-asset { color: #FFFFFF; }
+        .logo-flow { color: #FF4B4B; }
+    }
+
+    /* Estilos para o footer na barra lateral */
+    .sidebar-footer {
+        text-align: center;
+        padding-top: 20px;
+        padding-bottom: 20px;
+    }
+    .sidebar-footer a {
+        margin-right: 15px;
+        text-decoration: none;
+    }
+    .sidebar-footer img {
+        width: 25px;
+        height: 25px;
+        filter: grayscale(1) opacity(0.5);
+        transition: filter 0.3s;
+    }
+    .sidebar-footer img:hover {
+        filter: grayscale(0) opacity(1);
+    }
+    
+    @media (prefers-color-scheme: dark) {
+        .sidebar-footer img {
+            filter: grayscale(1) opacity(0.6) invert(1);
+        }
+        .sidebar-footer img:hover {
+            filter: opacity(1) invert(1);
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- Header (Logo no canto superior esquerdo) ---
+st.markdown(
+    """
+    <div class="logo-text">
+        <span class="logo-asset">ASSET</span><span class="logo-flow">FLOW</span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# --- Barra Lateral (Agora contém informações e o footer) ---
 with st.sidebar:
+    st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
+    st.write(f"Cargo: **{st.session_state['user_role']}**")
+    if st.button("Logout"):
+        from auth import logout
+        logout()
+
+    # Footer (Ícones agora no fundo da barra lateral)
     st.markdown("---")
-    # Logo com o nome do sistema
     st.markdown(
-        """
-        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold;">
-            <span style="color: #003366;">ASSET</span><span style="color: #E30613;">FLOW</span>
+        f"""
+        <div class="sidebar-footer">
+            <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
+            </a>
+            <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+            </a>
         </div>
         """,
         unsafe_allow_html=True
     )
-    st.markdown("---")
+
 
 # --- Funções de Backup e Restauração ---
 
@@ -147,4 +219,5 @@ if uploaded_file is not None:
         if col2.button("Não, cancelar"):
             st.session_state.confirm_restore = False
             st.rerun()
+
 
