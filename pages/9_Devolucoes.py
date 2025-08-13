@@ -9,8 +9,7 @@ from auth import show_login_form
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- NOVO: Configuração de Layout (Header e Footer) ---
-# Este bloco de código define o novo layout da página.
+# --- NOVO: Configuração de Layout (Header e CSS) ---
 st.markdown("""
 <style>
     /* Estilos da Logo */
@@ -18,7 +17,7 @@ st.markdown("""
         font-family: 'Courier New', monospace;
         font-size: 28px;
         font-weight: bold;
-        padding-top: 20px; /* Adiciona um espaço no topo */
+        padding-top: 20px;
     }
     /* Cor para o tema claro (padrão) */
     .logo-asset { color: #003366; }
@@ -30,35 +29,32 @@ st.markdown("""
         .logo-flow { color: #FF4B4B; }
     }
 
-    /* Estilos do Footer */
-    .footer {
-        position: fixed;
-        left: 25px;
-        bottom: 25px;
-        color: grey;
-        text-align: left;
+    /* Estilos para o footer na barra lateral */
+    .sidebar-footer {
+        text-align: center;
+        padding-top: 20px;
+        padding-bottom: 20px;
     }
-    .footer a {
+    .sidebar-footer a {
         margin-right: 15px;
         text-decoration: none;
     }
-    .footer img {
+    .sidebar-footer img {
         width: 25px;
         height: 25px;
-        filter: grayscale(1) opacity(0.5); /* Minimalista em cinza para tema claro */
+        filter: grayscale(1) opacity(0.5);
         transition: filter 0.3s;
     }
-    .footer img:hover {
+    .sidebar-footer img:hover {
         filter: grayscale(0) opacity(1);
     }
     
-    /* CORREÇÃO: Adapta os ícones para o tema escuro */
     @media (prefers-color-scheme: dark) {
-        .footer img {
-            filter: grayscale(1) opacity(0.6) invert(1); /* Inverte para branco e aplica opacidade */
+        .sidebar-footer img {
+            filter: grayscale(1) opacity(0.6) invert(1);
         }
-        .footer img:hover {
-            filter: opacity(1) invert(1); /* Apenas opacidade total, mantendo branco */
+        .sidebar-footer img:hover {
+            filter: opacity(1) invert(1);
         }
     }
 </style>
@@ -74,28 +70,29 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- Footer (Ícones no canto inferior esquerdo) ---
-st.markdown(
-    f"""
-    <div class="footer">
-        <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
-            <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
-        </a>
-        <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
-            <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
-        </a>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-# --- Barra Lateral (Mantém informações do utilizador e logout) ---
+# --- Barra Lateral (Agora contém tudo, incluindo o footer) ---
 with st.sidebar:
     st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
     st.write(f"Cargo: **{st.session_state['user_role']}**")
     if st.button("Logout"):
         from auth import logout
         logout()
+
+    # Footer (Ícones agora no fundo da barra lateral)
+    st.markdown("---")
+    st.markdown(
+        f"""
+        <div class="sidebar-footer">
+            <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
+            </a>
+            <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 # --- Funções do DB ---
