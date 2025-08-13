@@ -7,7 +7,7 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def check_login(username, password):
-    """Verifica as credenciais do usuário no banco de dados."""
+    """Verifica as credenciais do utilizador no banco de dados."""
     conn = sqlite3.connect('inventario.db')
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -30,27 +30,96 @@ def check_login(username, password):
     return False
 
 def show_login_form():
-    """Exibe o formulário de login centralizado."""
-    st.title("Sistema de Gerenciamento de Aparelhos")
+    """Exibe o formulário de login centralizado e personalizado."""
     
-    # Usa colunas para criar espaço nas laterais e centralizar o formulário
+    # CSS para a logo e footer da tela de login
+    st.markdown("""
+    <style>
+        .login-logo-text {
+            font-family: 'Courier New', monospace;
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .login-logo-asset { color: #003366; }
+        .login-logo-flow { color: #E30613; }
+
+        @media (prefers-color-scheme: dark) {
+            .login-logo-asset { color: #FFFFFF; }
+            .login-logo-flow { color: #FF4B4B; }
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .login-footer a {
+            margin: 0 10px;
+        }
+        .login-footer img {
+            width: 25px;
+            height: 25px;
+            filter: grayscale(1) opacity(0.5);
+            transition: filter 0.3s;
+        }
+        .login-footer img:hover {
+            filter: grayscale(0) opacity(1);
+        }
+        @media (prefers-color-scheme: dark) {
+            .login-footer img {
+                filter: grayscale(1) opacity(0.6) invert(1);
+            }
+            .login-footer img:hover {
+                filter: opacity(1) invert(1);
+            }
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Logo
+    st.markdown(
+        """
+        <div class="login-logo-text">
+            <span class="login-logo-asset">ASSET</span><span class="login-logo-flow">FLOW</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Usa colunas para centralizar o formulário
     col1, col2, col3 = st.columns([1, 1.5, 1])
     
     with col2:
         with st.form("login_form"):
             st.subheader("Login")
-            username = st.text_input("Usuário", placeholder="admin")
-            password = st.text_input("Senha", type="password", placeholder="admin")
+            username = st.text_input("Utilizador", placeholder="admin")
+            password = st.text_input("Senha", type="password", placeholder="info09@FTP")
             submitted = st.form_submit_button("Entrar")
 
             if submitted:
                 if check_login(username, password):
                     st.rerun()
                 else:
-                    st.error("Usuário ou senha inválidos.")
+                    st.error("Utilizador ou senha inválidos.")
+
+    # Footer com ícones
+    st.markdown(
+        f"""
+        <div class="login-footer">
+            <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
+            </a>
+            <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 def logout():
-    """Faz o logout do usuário, limpando a sessão."""
+    """Faz o logout do utilizador, limpando a sessão."""
     st.session_state['logged_in'] = False
     st.session_state.pop('username', None)
     st.session_state.pop('user_role', None)
