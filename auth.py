@@ -93,8 +93,8 @@ def show_login_form():
     with col2:
         with st.form("login_form"):
             st.subheader("Login")
-            username = st.text_input("Utilizador", placeholder="admin")
-            password = st.text_input("Senha", type="password", placeholder="info09@FTP")
+            username = st.text_input("Utilizador", placeholder="Usuário")
+            password = st.text_input("Senha", type="password", placeholder="Digite sua senha")
             submitted = st.form_submit_button("Entrar")
 
             if submitted:
@@ -125,3 +125,4 @@ def logout():
     st.session_state.pop('user_role', None)
     st.session_state.pop('user_name', None)
     st.rerun()
+
