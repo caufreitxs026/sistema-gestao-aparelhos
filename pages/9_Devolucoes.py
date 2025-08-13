@@ -45,11 +45,21 @@ st.markdown("""
     .footer img {
         width: 25px;
         height: 25px;
-        filter: grayscale(1) opacity(0.5); /* Minimalista em cinza */
+        filter: grayscale(1) opacity(0.5); /* Minimalista em cinza para tema claro */
         transition: filter 0.3s;
     }
     .footer img:hover {
-        filter: grayscale(0) opacity(1); /* Colorido ao passar o rato */
+        filter: grayscale(0) opacity(1);
+    }
+    
+    /* CORREÇÃO: Adapta os ícones para o tema escuro */
+    @media (prefers-color-scheme: dark) {
+        .footer img {
+            filter: grayscale(1) opacity(0.6) invert(1); /* Inverte para branco e aplica opacidade */
+        }
+        .footer img:hover {
+            filter: opacity(1) invert(1); /* Apenas opacidade total, mantendo branco */
+        }
     }
 </style>
 """, unsafe_allow_html=True)
