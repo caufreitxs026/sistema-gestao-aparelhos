@@ -93,8 +93,8 @@ def show_login_form():
     with col2:
         with st.form("login_form"):
             st.subheader("Login")
-            username = st.text_input("Utilizador", placeholder="Usuário")
-            password = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+            username = st.text_input("Utilizador", placeholder="admin")
+            password = st.text_input("Senha", type="password", placeholder="info09@FTP")
             submitted = st.form_submit_button("Entrar")
 
             if submitted:
@@ -103,15 +103,15 @@ def show_login_form():
                 else:
                     st.error("Utilizador ou senha inválidos.")
 
-    # Footer com ícones
+    # Footer com ícones (Instagram trocado por LinkedIn)
     st.markdown(
         f"""
         <div class="login-footer">
             <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
                 <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
             </a>
-            <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
-                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+            <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
             </a>
         </div>
         """,
@@ -125,4 +125,3 @@ def logout():
     st.session_state.pop('user_role', None)
     st.session_state.pop('user_name', None)
     st.rerun()
-
