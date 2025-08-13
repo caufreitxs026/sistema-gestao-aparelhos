@@ -83,18 +83,22 @@ aparelhos_list, colaboradores_list, status_list = carregar_dados_para_selects()
 st.subheader("Formulário de Movimentação")
 
 with st.form("form_movimentacao", clear_on_submit=True):
-    filtro_aparelho = st.text_input("Pesquisar Aparelho (por N/S, marca ou modelo)")
     aparelhos_dict = {f"{ap['nome_marca']} {ap['nome_modelo']} (S/N: {ap['numero_serie']})": ap['id'] for ap in aparelhos_list}
-    opcoes_aparelho_filtradas = {k: v for k, v in aparelhos_dict.items() if filtro_aparelho.lower() in k.lower()}
-    aparelho_selecionado_str = st.selectbox("Selecione o Aparelho*", options=opcoes_aparelho_filtradas.keys())
+    aparelho_selecionado_str = st.selectbox(
+        "Selecione o Aparelho*",
+        options=aparelhos_dict.keys(),
+        help="Clique na lista e comece a digitar para pesquisar."
+    )
 
-    filtro_colaborador = st.text_input("Pesquisar Colaborador")
     colaboradores_dict = {col['nome_completo']: col['id'] for col in colaboradores_list}
-    opcoes_colaborador_filtradas = {k: v for k, v in colaboradores_dict.items() if filtro_colaborador.lower() in k.lower()}
-    
     opcoes_colaborador_com_nenhum = {"Nenhum": None}
-    opcoes_colaborador_com_nenhum.update(opcoes_colaborador_filtradas)
-    colaborador_selecionado_str = st.selectbox("Atribuir ao Colaborador", options=opcoes_colaborador_com_nenhum.keys())
+    opcoes_colaborador_com_nenhum.update(colaboradores_dict)
+    
+    colaborador_selecionado_str = st.selectbox(
+        "Atribuir ao Colaborador",
+        options=opcoes_colaborador_com_nenhum.keys(),
+        help="Clique na lista e comece a digitar para pesquisar."
+    )
     
     status_dict = {s['nome_status']: s['id'] for s in status_list}
     novo_status_str = st.selectbox("Novo Status do Aparelho*", options=status_dict.keys())
@@ -106,7 +110,7 @@ with st.form("form_movimentacao", clear_on_submit=True):
         if not aparelho_selecionado_str or not novo_status_str:
             st.error("Aparelho e Novo Status são campos obrigatórios.")
         else:
-            aparelho_id = opcoes_aparelho_filtradas[aparelho_selecionado_str]
+            aparelho_id = aparelhos_dict[aparelho_selecionado_str]
             colaborador_id = opcoes_colaborador_com_nenhum[colaborador_selecionado_str]
             novo_status_id = status_dict[novo_status_str]
             registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, nova_localizacao, observacoes)
