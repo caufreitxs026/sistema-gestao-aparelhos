@@ -1,13 +1,17 @@
-# Sistema de Gestão de Aparelhos v2.2
+# AssetFlow v2.3
 
-Uma aplicação web completa e robusta construída com Python e Streamlit para gerir todo o ciclo de vida de ativos de TI (smartphones, etc.) numa empresa, com fluxos de trabalho inteligentes e funcionalidades de gestão em massa.
+Uma aplicação web completa e robusta construída com Python e Streamlit para gerir todo o ciclo de vida de ativos de TI (smartphones, etc.) numa empresa, com fluxos de trabalho inteligentes, funcionalidades de gestão em massa e uma interface de utilizador refinada.
 
 ## Funcionalidades Principais
 
 - **Dashboard Gerencial:** Visualização rápida dos principais indicadores (KPIs) do inventário.
-- **Sistema de Login Seguro:** Acesso protegido com hashing de senhas e diferentes níveis de permissão (Administrador, etc.).
+- **Sistema de Login Seguro:** Acesso protegido com hashing de senhas e diferentes níveis de permissão.
 - **Gestão de Utilizadores:** Painel administrativo para criar e gerir os acessos ao sistema.
-- **Interface Moderna e Editável:** A maioria das tabelas de gestão permite a edição direta dos dados, tornando as atualizações rápidas e intuitivas.
+- **Interface Profissional e Consistente:**
+    - **Identidade Visual:** Logo da aplicação e links de contacto profissionalmente integrados na interface.
+    - **Layout Otimizado:** Uso de secções que podem ser minimizadas e um design limpo em todas as páginas.
+    - **Usabilidade Aprimorada:** Listas suspensas inteligentes com pesquisa integrada para encontrar rapidamente aparelhos e colaboradores em formulários com muitos dados.
+- **Edição Direta na Tabela:** A maioria das tabelas de gestão permite a edição direta dos dados, tornando as atualizações rápidas e intuitivas.
 
 ---
 
@@ -26,14 +30,13 @@ Uma aplicação web completa e robusta construída com Python e Streamlit para g
 #### Geração de Documentos Profissionais em PDF
 - **Termo de Responsabilidade:** Criação de termos de entrega com design profissional, logo da empresa e um fluxo de "checkout" para edição antes de gerar o PDF.
 
-#### **Novo!** Importação de Dados em Lote
+#### 엑Importação de Dados em Lote
 - **Página Dedicada:** Uma nova secção para importar dados em massa a partir de planilhas Excel (.xlsx).
-- **Download de Modelos:** Para cada tipo de registo (Colaboradores, Aparelhos, etc.), o sistema oferece um modelo de planilha com exemplos para garantir o preenchimento correto.
-- **Validação Inteligente:** O sistema valida os dados durante o upload, reportando sucessos e erros linha a linha, garantindo a integridade da base de dados.
+- **Download de Modelos:** Para cada tipo de registo, o sistema oferece um modelo de planilha com exemplos para garantir o preenchimento correto.
+- **Validação Inteligente:** O sistema valida os dados durante o upload, reportando sucessos e erros linha a linha.
 
-#### **Novo!** Backup e Restauração
-- **Painel Administrativo:** Uma página segura, acessível apenas por administradores, para criar e restaurar backups completos do sistema.
-- **Backup com Um Clique:** Gere um ficheiro `.sql` completo de todo o banco de dados para guardar num local seguro.
+#### Backup e Restauração
+- **Painel Administrativo:** Uma página segura para criar e restaurar backups completos do sistema com um clique.
 - **Restauração Segura:** Faça o upload de um ficheiro de backup para restaurar o sistema a um ponto anterior, com múltiplas confirmações para evitar a perda acidental de dados.
 
 ---
