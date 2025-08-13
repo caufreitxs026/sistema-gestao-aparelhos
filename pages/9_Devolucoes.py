@@ -3,10 +3,49 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import json
+from auth import show_login_form
 
 # --- Autenticação ---
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
+
+# --- Configuração da Barra Lateral ---
+with st.sidebar:
+    st.markdown("---")
+    # Logo com o nome do sistema
+    st.markdown(
+        """
+        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold;">
+            <span style="color: #003366;">ASSET</span><span style="color: #E30613;">FLOW</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
+    
+    # Informações do Utilizador
+    st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
+    st.write(f"Cargo: **{st.session_state['user_role']}**")
+    if st.button("Logout"):
+        from auth import logout
+        logout()
+
+    # Ícones das Redes Sociais no fundo
+    st.markdown("---")
+    st.markdown(
+        f"""
+        <div style="text-align: center;">
+            <a href="https://github.com/caufreitxs026" target="_blank" style="margin-right: 15px;">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg" width="25" height="25" style="filter: invert(1);">
+            </a>
+            <a href="https://instagram.com/Caufreitxs" target="_blank">
+                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg" width="25" height="25" style="filter: invert(1);">
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 
 # --- Funções do DB ---
 def get_db_connection():
@@ -104,55 +143,49 @@ aparelhos_em_uso = carregar_aparelhos_em_uso()
 if not aparelhos_em_uso:
     st.info("Não há aparelhos com o status 'Em uso' para serem devolvidos no momento.")
 else:
-    # --- NOVO: Campo de pesquisa para aparelhos/colaboradores ---
-    filtro_devolucao = st.text_input("Pesquisar por Colaborador, Modelo ou N/S")
-
     aparelhos_dict = {
         f"{ap['colaborador_nome']} - {ap['nome_marca']} {ap['nome_modelo']} (S/N: {ap['numero_serie']})": ap
         for ap in aparelhos_em_uso
     }
+    
+    aparelho_selecionado_str = st.selectbox(
+        "Selecione o aparelho e colaborador:",
+        options=aparelhos_dict.keys(),
+        help="Clique na lista e comece a digitar para pesquisar."
+    )
+    
+    aparelho_selecionado_data = aparelhos_dict[aparelho_selecionado_str]
+    aparelho_id = aparelho_selecionado_data['aparelho_id']
+    colaborador_id = aparelho_selecionado_data['colaborador_id']
 
-    # --- Lógica de filtragem ---
-    opcoes_filtradas = {k: v for k, v in aparelhos_dict.items() if filtro_devolucao.lower() in k.lower()}
+    st.markdown("---")
 
-    if not opcoes_filtradas:
-        st.warning("Nenhum resultado encontrado para a sua pesquisa.")
-    else:
-        aparelho_selecionado_str = st.selectbox("Selecione o aparelho e colaborador:", options=opcoes_filtradas.keys())
+    # Etapa 2 e 3: Checklist e Decisão
+    st.subheader("2. Realize a Inspeção e Decida o Destino Final")
+    with st.form("form_devolucao"):
+        st.markdown("##### Checklist de Devolução")
         
-        aparelho_selecionado_data = opcoes_filtradas[aparelho_selecionado_str]
-        aparelho_id = aparelho_selecionado_data['aparelho_id']
-        colaborador_id = aparelho_selecionado_data['colaborador_id']
-
+        checklist_data = {}
+        itens_checklist = ["Tela", "Carcaça", "Bateria", "Botões", "USB", "Chip", "Carregador", "Cabo USB", "Capa", "Película"]
+        opcoes_estado = ["Bom", "Riscado", "Quebrado", "Faltando"]
+        
+        for item in itens_checklist:
+            col1, col2 = st.columns(2)
+            entregue = col1.checkbox(f"{item}", value=True, key=f"entregue_{item}")
+            estado = col2.selectbox(f"Estado de {item}", options=opcoes_estado, key=f"estado_{item}")
+            checklist_data[item] = {'entregue': entregue, 'estado': estado}
+        
+        observacoes = st.text_area("Observações Gerais da Devolução", placeholder="Ex: Tela com risco profundo no canto superior direito.")
+        
         st.markdown("---")
+        st.markdown("##### Destino Final do Aparelho")
+        destino_final = st.radio(
+            "Selecione o destino do aparelho após a inspeção:",
+            ["Devolver ao Estoque", "Enviar para Manutenção", "Baixar/Inutilizar"],
+            horizontal=True
+        )
 
-        # Etapa 2 e 3: Checklist e Decisão
-        st.subheader("2. Realize a Inspeção e Decida o Destino Final")
-        with st.form("form_devolucao"):
-            st.markdown("##### Checklist de Devolução")
-            
-            checklist_data = {}
-            itens_checklist = ["Tela", "Carcaça", "Bateria", "Botões", "USB", "Chip", "Carregador", "Cabo USB", "Capa", "Película"]
-            opcoes_estado = ["Bom", "Riscado", "Quebrado", "Faltando"]
-            
-            for item in itens_checklist:
-                col1, col2 = st.columns(2)
-                entregue = col1.checkbox(f"{item}", value=True, key=f"entregue_{item}")
-                estado = col2.selectbox(f"Estado de {item}", options=opcoes_estado, key=f"estado_{item}")
-                checklist_data[item] = {'entregue': entregue, 'estado': estado}
-            
-            observacoes = st.text_area("Observações Gerais da Devolução", placeholder="Ex: Tela com risco profundo no canto superior direito.")
-            
-            st.markdown("---")
-            st.markdown("##### Destino Final do Aparelho")
-            destino_final = st.radio(
-                "Selecione o destino do aparelho após a inspeção:",
-                ["Devolver ao Estoque", "Enviar para Manutenção", "Baixar/Inutilizar"],
-                horizontal=True
-            )
-
-            submitted = st.form_submit_button("Processar Devolução")
-            if submitted:
-                if processar_devolucao(aparelho_id, colaborador_id, checklist_data, destino_final, observacoes):
-                    st.rerun()
-
+        submitted = st.form_submit_button("Processar Devolução")
+        if submitted:
+            if processar_devolucao(aparelho_id, colaborador_id, checklist_data, destino_final, observacoes):
+                st.rerun()
