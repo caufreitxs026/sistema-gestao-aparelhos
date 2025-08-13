@@ -9,6 +9,20 @@ import io
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
+# --- Configuração da Barra Lateral ---
+with st.sidebar:
+    st.markdown("---")
+    # Logo com o nome do sistema
+    st.markdown(
+        """
+        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold;">
+            <span style="color: #003366;">ASSET</span><span style="color: #E30613;">FLOW</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
+
 # --- Funções do DB ---
 def get_db_connection():
     conn = sqlite3.connect('inventario.db')
@@ -292,3 +306,4 @@ elif tabela_selecionada == "Contas Gmail":
 
         except Exception as e:
             st.error(f"Ocorreu um erro ao ler o ficheiro: {e}")
+
