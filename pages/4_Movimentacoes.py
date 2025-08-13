@@ -23,7 +23,6 @@ def get_db_connection():
 def carregar_dados_para_selects():
     """Carrega aparelhos, colaboradores e status para as caixas de seleção."""
     conn = get_db_connection()
-    # Carrega apenas aparelhos que não estão "Baixado/Inutilizado"
     aparelhos = conn.execute("""
         SELECT a.id, a.numero_serie, mo.nome_modelo, ma.nome_marca
         FROM aparelhos a
@@ -39,34 +38,21 @@ def carregar_dados_para_selects():
     return aparelhos, colaboradores, status
 
 def registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, localizacao, observacoes):
-    """
-    Regista uma nova movimentação no histórico e atualiza o status do aparelho.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     data_hora_agora = datetime.now()
-
     try:
         cursor.execute("BEGIN TRANSACTION;")
-
-        # 1. Insere o novo registo no histórico
         cursor.execute(
-            """
-            INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, colaborador_id, status_id, localizacao_atual, observacoes)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
+            "INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, colaborador_id, status_id, localizacao_atual, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
             (data_hora_agora, aparelho_id, colaborador_id, novo_status_id, localizacao, observacoes)
         )
-
-        # 2. Atualiza o status atual na tabela principal de aparelhos
         cursor.execute(
             "UPDATE aparelhos SET status_id = ? WHERE id = ?",
             (novo_status_id, aparelho_id)
         )
-
         conn.commit()
         st.success("Movimentação registada com sucesso!")
-
     except Exception as e:
         conn.rollback()
         st.error(f"Ocorreu um erro ao registar a movimentação: {e}")
@@ -74,18 +60,12 @@ def registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, localizac
         conn.close()
 
 def carregar_historico_completo():
-    """Carrega o histórico completo de movimentações para exibição."""
     conn = get_db_connection()
     df = pd.read_sql_query("""
         SELECT 
-            h.id,
-            h.data_movimentacao,
-            a.numero_serie,
-            mo.nome_modelo,
-            c.nome_completo as colaborador,
-            s.nome_status,
-            h.localizacao_atual,
-            h.observacoes
+            h.id, h.data_movimentacao, a.numero_serie, mo.nome_modelo,
+            c.nome_completo as colaborador, s.nome_status,
+            h.localizacao_atual, h.observacoes
         FROM historico_movimentacoes h
         JOIN aparelhos a ON h.aparelho_id = a.id
         JOIN status s ON h.status_id = s.id
@@ -103,24 +83,19 @@ aparelhos_list, colaboradores_list, status_list = carregar_dados_para_selects()
 st.subheader("Formulário de Movimentação")
 
 with st.form("form_movimentacao", clear_on_submit=True):
-    # --- Pesquisa e seleção de Aparelho ---
     filtro_aparelho = st.text_input("Pesquisar Aparelho (por N/S, marca ou modelo)")
     aparelhos_dict = {f"{ap['nome_marca']} {ap['nome_modelo']} (S/N: {ap['numero_serie']})": ap['id'] for ap in aparelhos_list}
     opcoes_aparelho_filtradas = {k: v for k, v in aparelhos_dict.items() if filtro_aparelho.lower() in k.lower()}
     aparelho_selecionado_str = st.selectbox("Selecione o Aparelho*", options=opcoes_aparelho_filtradas.keys())
 
-    # --- Seleção de Colaborador (sem campo de pesquisa extra) ---
+    filtro_colaborador = st.text_input("Pesquisar Colaborador")
     colaboradores_dict = {col['nome_completo']: col['id'] for col in colaboradores_list}
+    opcoes_colaborador_filtradas = {k: v for k, v in colaboradores_dict.items() if filtro_colaborador.lower() in k.lower()}
+    
     opcoes_colaborador_com_nenhum = {"Nenhum": None}
-    opcoes_colaborador_com_nenhum.update(colaboradores_dict)
+    opcoes_colaborador_com_nenhum.update(opcoes_colaborador_filtradas)
+    colaborador_selecionado_str = st.selectbox("Atribuir ao Colaborador", options=opcoes_colaborador_com_nenhum.keys())
     
-    colaborador_selecionado_str = st.selectbox(
-        "Atribuir ao Colaborador",
-        options=opcoes_colaborador_com_nenhum.keys(),
-        help="Clique na lista e comece a digitar para pesquisar um colaborador."
-    )
-    
-    # --- Outros campos ---
     status_dict = {s['nome_status']: s['id'] for s in status_list}
     novo_status_str = st.selectbox("Novo Status do Aparelho*", options=status_dict.keys())
     nova_localizacao = st.text_input("Nova Localização", placeholder="Ex: Mesa do colaborador, Assistência Técnica XYZ")
