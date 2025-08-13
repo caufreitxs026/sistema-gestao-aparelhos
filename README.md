@@ -30,7 +30,7 @@ Uma aplicação web completa e robusta construída com Python e Streamlit para g
 #### Geração de Documentos Profissionais em PDF
 - **Termo de Responsabilidade:** Criação de termos de entrega com design profissional, logo da empresa e um fluxo de "checkout" para edição antes de gerar o PDF.
 
-#### 엑Importação de Dados em Lote
+#### Importação de Dados em Lote
 - **Página Dedicada:** Uma nova secção para importar dados em massa a partir de planilhas Excel (.xlsx).
 - **Download de Modelos:** Para cada tipo de registo, o sistema oferece um modelo de planilha com exemplos para garantir o preenchimento correto.
 - **Validação Inteligente:** O sistema valida os dados durante o upload, reportando sucessos e erros linha a linha.
