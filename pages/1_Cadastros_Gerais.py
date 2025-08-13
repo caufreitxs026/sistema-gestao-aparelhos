@@ -11,6 +11,19 @@ if st.session_state.get('user_role') != 'Administrador':
     st.error("Acesso negado. Apenas administradores podem aceder a esta página.")
     st.stop()
 
+# --- Configuração da Barra Lateral ---
+with st.sidebar:
+    st.markdown("---")
+    # Logo com o nome do sistema
+    st.markdown(
+        """
+        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold;">
+            <span style="color: #003366;">ASSET</span><span style="color: #E30613;">FLOW</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
 
 # --- Configurações da Página ---
 st.set_page_config(page_title="Cadastros Gerais", layout="wide")
@@ -190,3 +203,4 @@ with tab2:
                         if atualizar_setor(row['id'], row['nome_setor']):
                             st.toast(f"Setor '{row['nome_setor']}' atualizado!", icon="✅")
                 st.rerun()
+
