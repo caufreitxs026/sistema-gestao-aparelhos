@@ -9,42 +9,83 @@ from auth import show_login_form
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- Configuração da Barra Lateral ---
+# --- NOVO: Configuração de Layout (Header e Footer) ---
+# Este bloco de código define o novo layout da página.
+st.markdown("""
+<style>
+    /* Estilos da Logo */
+    .logo-text {
+        font-family: 'Courier New', monospace;
+        font-size: 28px;
+        font-weight: bold;
+        padding-top: 20px; /* Adiciona um espaço no topo */
+    }
+    /* Cor para o tema claro (padrão) */
+    .logo-asset { color: #003366; }
+    .logo-flow { color: #E30613; }
+
+    /* Cor para o tema escuro (usando media query) */
+    @media (prefers-color-scheme: dark) {
+        .logo-asset { color: #FFFFFF; }
+        .logo-flow { color: #FF4B4B; }
+    }
+
+    /* Estilos do Footer */
+    .footer {
+        position: fixed;
+        left: 25px;
+        bottom: 25px;
+        color: grey;
+        text-align: left;
+    }
+    .footer a {
+        margin-right: 15px;
+        text-decoration: none;
+    }
+    .footer img {
+        width: 25px;
+        height: 25px;
+        filter: grayscale(1) opacity(0.5); /* Minimalista em cinza */
+        transition: filter 0.3s;
+    }
+    .footer img:hover {
+        filter: grayscale(0) opacity(1); /* Colorido ao passar o rato */
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- Header (Logo no canto superior esquerdo) ---
+st.markdown(
+    """
+    <div class="logo-text">
+        <span class="logo-asset">ASSET</span><span class="logo-flow">FLOW</span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# --- Footer (Ícones no canto inferior esquerdo) ---
+st.markdown(
+    f"""
+    <div class="footer">
+        <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
+            <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
+        </a>
+        <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
+            <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# --- Barra Lateral (Mantém informações do utilizador e logout) ---
 with st.sidebar:
-    st.markdown("---")
-    # Logo com o nome do sistema
-    st.markdown(
-        """
-        <div style="text-align: center; font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold;">
-            <span style="color: #003366;">ASSET</span><span style="color: #E30613;">FLOW</span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    st.markdown("---")
-    
-    # Informações do Utilizador
     st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
     st.write(f"Cargo: **{st.session_state['user_role']}**")
     if st.button("Logout"):
         from auth import logout
         logout()
-
-    # Ícones das Redes Sociais no fundo
-    st.markdown("---")
-    st.markdown(
-        f"""
-        <div style="text-align: center;">
-            <a href="https://github.com/caufreitxs026" target="_blank" style="margin-right: 15px;">
-                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg" width="25" height="25" style="filter: invert(1);">
-            </a>
-            <a href="https://instagram.com/Caufreitxs" target="_blank">
-                <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg" width="25" height="25" style="filter: invert(1);">
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
 
 # --- Funções do DB ---
