@@ -17,23 +17,22 @@ if not st.session_state['logged_in']:
 else:
     # --- Se logado, mostra a aplicação completa ---
 
-    # --- Configuração de Layout (CSS) ---
+    # --- Configuração de Layout (Header, Footer e CSS) ---
     st.markdown("""
     <style>
-        /* Estilos da Logo na Barra Lateral */
-        .sidebar-logo-text {
+        /* Estilos da Logo */
+        .logo-text {
             font-family: 'Courier New', monospace;
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            text-align: center;
-            margin-bottom: 20px;
+            padding-top: 20px;
         }
-        .sidebar-logo-asset { color: #003366; }
-        .sidebar-logo-flow { color: #E30613; }
+        .logo-asset { color: #003366; }
+        .logo-flow { color: #E30613; }
 
         @media (prefers-color-scheme: dark) {
-            .sidebar-logo-asset { color: #FFFFFF; }
-            .sidebar-logo-flow { color: #FF4B4B; }
+            .logo-asset { color: #FFFFFF; }
+            .logo-flow { color: #FF4B4B; }
         }
         
         /* Estilos para o footer na barra lateral */
@@ -43,7 +42,8 @@ else:
             padding-bottom: 20px;
         }
         .sidebar-footer a {
-            margin: 0 10px;
+            margin-right: 15px;
+            text-decoration: none;
         }
         .sidebar-footer img {
             width: 25px;
@@ -66,24 +66,23 @@ else:
     </style>
     """, unsafe_allow_html=True)
 
-    # --- Barra Lateral (Agora contém tudo) ---
-    with st.sidebar:
-        # Logo no topo da barra lateral
-        st.markdown(
-            """
-            <div class="sidebar-logo-text">
-                <span class="sidebar-logo-asset">ASSET</span><span class="sidebar-logo-flow">FLOW</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    # --- Header (Logo no canto superior esquerdo) ---
+    st.markdown(
+        """
+        <div class="logo-text">
+            <span class="logo-asset">ASSET</span><span class="logo-flow">FLOW</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
+    # --- Barra Lateral (Agora contém informações e o footer) ---
+    with st.sidebar:
         st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
         st.write(f"Cargo: **{st.session_state['user_role']}**")
         if st.button("Logout"):
             logout()
 
-        # Footer com ícones no fundo da barra lateral
         st.markdown("---")
         st.markdown(
             f"""
@@ -91,8 +90,8 @@ else:
                 <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
                     <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
                 </a>
-                <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
-                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
+                <a href="https://instagram.com/Caufreitxs" target="_blank" title="Instagram">
+                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/instagram.svg">
                 </a>
             </div>
             """,
