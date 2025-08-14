@@ -106,12 +106,13 @@ def get_db_connection():
 def get_foreign_key_map(table_name, column_name, key_column='id'):
     """Cria um dicionário mapeando nomes a IDs para chaves estrangeiras."""
     conn = get_db_connection()
-    # Query ajustada para lidar com a concatenação de colunas
+    key_alias = key_column.split('.')[-1]
+    
     if '||' in column_name:
-        query = f"SELECT {key_column}, {column_name} as combined_name FROM {table_name} mo JOIN marcas ma ON mo.marca_id = ma.id"
+        query = f"SELECT {key_column} as {key_alias}, {column_name} as combined_name FROM {table_name} mo JOIN marcas ma ON mo.marca_id = ma.id"
         df = pd.read_sql_query(query, conn)
         conn.close()
-        return pd.Series(df[key_column].values, index=df['combined_name']).to_dict()
+        return pd.Series(df[key_alias].values, index=df['combined_name']).to_dict()
     else:
         query = f"SELECT {key_column}, {column_name} FROM {table_name}"
         df = pd.read_sql_query(query, conn)
@@ -122,15 +123,15 @@ def get_foreign_key_map(table_name, column_name, key_column='id'):
 st.title("Importar Dados em Lote")
 st.markdown("---")
 
-st.info("Selecione a tabela, baixe o modelo, preencha com seus dados e faça o upload para importar em massa.")
+st.info("Selecione a operação, baixe o modelo, preencha com seus dados e faça o upload para importar em massa.")
 
 tabela_selecionada = st.selectbox(
-    "1. Selecione a tabela para importar dados:",
-    ["Colaboradores", "Aparelhos", "Marcas", "Contas Gmail"]
+    "1. Selecione a operação:",
+    ["Importar Colaboradores", "Importar Aparelhos", "Importar Marcas", "Importar Contas Gmail", "Importar Movimentações"]
 )
 
 # --- LÓGICA PARA COLABORADORES ---
-if tabela_selecionada == "Colaboradores":
+if tabela_selecionada == "Importar Colaboradores":
     st.markdown("---")
     st.subheader("Importar Novos Colaboradores")
 
@@ -174,7 +175,7 @@ if tabela_selecionada == "Colaboradores":
         except Exception as e: st.error(f"Ocorreu um erro ao ler o ficheiro: {e}")
 
 # --- LÓGICA PARA APARELHOS ---
-elif tabela_selecionada == "Aparelhos":
+elif tabela_selecionada == "Importar Aparelhos":
     st.markdown("---")
     st.subheader("Importar Novos Aparelhos")
 
@@ -225,7 +226,7 @@ elif tabela_selecionada == "Aparelhos":
         except Exception as e: st.error(f"Ocorreu um erro ao ler o ficheiro: {e}")
 
 # --- LÓGICA PARA MARCAS ---
-elif tabela_selecionada == "Marcas":
+elif tabela_selecionada == "Importar Marcas":
     st.markdown("---")
     st.subheader("Importar Novas Marcas")
     df_modelo = pd.DataFrame({"nome_marca": ["Nome da Marca Exemplo"]})
@@ -261,7 +262,7 @@ elif tabela_selecionada == "Marcas":
         except Exception as e: st.error(f"Ocorreu um erro ao ler o ficheiro: {e}")
 
 # --- LÓGICA PARA CONTAS GMAIL ---
-elif tabela_selecionada == "Contas Gmail":
+elif tabela_selecionada == "Importar Contas Gmail":
     st.markdown("---")
     st.subheader("Importar Novas Contas Gmail")
     setores_map = get_foreign_key_map("setores", "nome_setor")
@@ -304,3 +305,56 @@ elif tabela_selecionada == "Contas Gmail":
                 st.success(f"Importação concluída! {sucesso} registos importados com sucesso.")
                 if erros > 0: st.error(f"{erros} registos continham erros.")
         except Exception as e: st.error(f"Ocorreu um erro ao ler o ficheiro: {e}")
+
+# --- LÓGICA PARA MOVIMENTAÇÕES ---
+elif tabela_selecionada == "Importar Movimentações":
+    st.markdown("---")
+    st.subheader("Importar Novas Movimentações (Entregas)")
+    st.warning("Esta funcionalidade é ideal para registar a entrega de aparelhos a colaboradores em massa.")
+
+    conn = get_db_connection()
+    aparelhos_df = pd.read_sql_query("SELECT numero_serie FROM aparelhos WHERE status_id = (SELECT id FROM status WHERE nome_status = 'Em estoque') LIMIT 1", conn)
+    colaboradores_df = pd.read_sql_query("SELECT nome_completo FROM colaboradores LIMIT 1", conn)
+    conn.close()
+    exemplo_ns = aparelhos_df['numero_serie'].iloc[0] if not aparelhos_df.empty else "NUMERO_DE_SERIE_DO_APARELHO"
+    exemplo_colab = colaboradores_df['nome_completo'].iloc[0] if not colaboradores_df.empty else "Nome Completo do Colaborador"
+    df_modelo = pd.DataFrame({"numero_serie_aparelho": [exemplo_ns], "nome_colaborador": [exemplo_colab], "localizacao": ["Mesa do Colaborador"], "observacoes": ["Entrega para novo colaborador."]})
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_modelo.to_excel(writer, index=False, sheet_name='Movimentacoes')
+    st.download_button(label="Baixar Planilha Modelo de Movimentações", data=output.getvalue(), file_name="modelo_movimentacoes.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    uploaded_file = st.file_uploader("Escolha a planilha de Movimentações (.xlsx)", type="xlsx", key="upload_mov")
+    if uploaded_file:
+        try:
+            df_upload = pd.read_excel(uploaded_file, dtype=str).fillna('')
+            st.dataframe(df_upload)
+            if st.button("Importar Movimentações"):
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                aparelhos_map = get_foreign_key_map("aparelhos", "numero_serie")
+                colaboradores_map = get_foreign_key_map("colaboradores", "nome_completo")
+                status_em_uso_id = get_foreign_key_map("status", "nome_status").get("Em uso")
+                sucesso, erros = 0, 0
+                with st.spinner("Processando movimentações..."):
+                    for index, row in df_upload.iterrows():
+                        try:
+                            aparelho_id = aparelhos_map.get(row['numero_serie_aparelho'].strip())
+                            colaborador_id = colaboradores_map.get(row['nome_colaborador'].strip())
+                            if not all([aparelho_id, colaborador_id, status_em_uso_id]):
+                                st.warning(f"Linha {index+2}: Aparelho ou Colaborador não encontrado/disponível. Pulando registo.")
+                                erros += 1; continue
+                            cursor.execute("BEGIN TRANSACTION;")
+                            cursor.execute("INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, colaborador_id, status_id, localizacao_atual, observacoes) VALUES (?, ?, ?, ?, ?, ?)", (datetime.now(), aparelho_id, colaborador_id, status_em_uso_id, row['localizacao'], row['observacoes']))
+                            cursor.execute("UPDATE aparelhos SET status_id = ? WHERE id = ?", (status_em_uso_id, aparelho_id))
+                            conn.commit()
+                            sucesso += 1
+                        except Exception as e:
+                            conn.rollback()
+                            st.error(f"Linha {index+2}: Erro inesperado - {e}. Pulando registo.")
+                            erros += 1
+                conn.close()
+                st.success(f"Importação concluída! {sucesso} movimentações registadas com sucesso.")
+                if erros > 0: st.error(f"{erros} registos continham erros.")
+        except Exception as e:
+            st.error(f"Ocorreu um erro ao ler o ficheiro: {e}")
