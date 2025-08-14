@@ -5,11 +5,10 @@ from datetime import date
 from auth import show_login_form
 
 # --- Autenticação ---
-# Se o utilizador não estiver logado, redireciona para a página principal de login
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- NOVO: Configuração de Layout (Header, Footer e CSS) ---
+# --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
     /* Estilos da Logo */
@@ -137,18 +136,36 @@ def carregar_colaboradores():
     conn.close()
     return df
 
-def atualizar_colaborador(col_id, codigo, nome, gmail, setor_id):
+def atualizar_colaborador(col_id, codigo, nome, cpf, gmail, setor_id):
     try:
         conn = get_db_connection()
         conn.execute(
-            "UPDATE colaboradores SET codigo = ?, nome_completo = ?, gmail = ?, setor_id = ? WHERE id = ?",
-            (codigo, nome, gmail, setor_id, col_id)
+            "UPDATE colaboradores SET codigo = ?, nome_completo = ?, cpf = ?, gmail = ?, setor_id = ? WHERE id = ?",
+            (codigo, nome, cpf, gmail, setor_id, col_id)
         )
         conn.commit()
         conn.close()
         return True
+    except sqlite3.IntegrityError:
+        st.error(f"Erro: O CPF '{cpf}' já pertence a outro colaborador.")
+        return False
     except Exception as e:
         st.error(f"Erro ao atualizar o colaborador ID {col_id}: {e}")
+        return False
+
+def excluir_colaborador(col_id):
+    try:
+        conn = get_db_connection()
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("DELETE FROM colaboradores WHERE id = ?", (col_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        st.error(f"Erro: Não é possível excluir o colaborador ID {col_id}, pois ele possui aparelhos ou outros registos associados.")
+        return False
+    except Exception as e:
+        st.error(f"Erro ao excluir o colaborador ID {col_id}: {e}")
         return False
 
 # --- UI ---
@@ -174,7 +191,7 @@ with col1:
             adicionar_colaborador(novo_nome, novo_cpf, novo_gmail, setor_id, novo_codigo)
 
 with col2:
-    with st.expander("Ver e Editar Colaboradores Cadastrados", expanded=True):
+    with st.expander("Ver, Editar e Excluir Colaboradores", expanded=True):
         colaboradores_df = carregar_colaboradores()
         setores_options = list(setores_dict.keys())
 
@@ -184,28 +201,36 @@ with col2:
                 "id": st.column_config.NumberColumn("ID", disabled=True),
                 "codigo": st.column_config.TextColumn("Código", required=True),
                 "nome_completo": st.column_config.TextColumn("Nome Completo", required=True),
-                "cpf": st.column_config.TextColumn("CPF", disabled=True),
+                "cpf": st.column_config.TextColumn("CPF", required=True),
                 "gmail": st.column_config.TextColumn("Gmail"),
                 "nome_setor": st.column_config.SelectboxColumn(
                     "Setor", options=setores_options, required=True
                 ),
             },
             hide_index=True,
+            num_rows="dynamic", # Permite adicionar e excluir linhas
             key="colaboradores_editor"
         )
         
-        if st.button("Salvar Alterações dos Colaboradores"):
+        if st.button("Salvar Alterações"):
+            # Lógica para Exclusão
+            deleted_ids = set(colaboradores_df['id']) - set(edited_df['id'])
+            for col_id in deleted_ids:
+                if excluir_colaborador(col_id):
+                    st.toast(f"Colaborador ID {col_id} excluído!", icon="🗑️")
+
+            # Lógica para Atualização
             for index, row in edited_df.iterrows():
-                original_row = colaboradores_df.loc[index]
-                if not row.equals(original_row):
-                    col_id = row['id']
-                    novo_codigo = row['codigo']
-                    novo_nome = row['nome_completo']
-                    novo_gmail = row['gmail']
-                    novo_setor_id = setores_dict.get(row['nome_setor'])
-                    
-                    if atualizar_colaborador(col_id, novo_codigo, novo_nome, novo_gmail, novo_setor_id):
-                        st.toast(f"Colaborador '{novo_nome}' atualizado!", icon="✅")
+                if index < len(colaboradores_df): # Apenas verifica linhas existentes
+                    original_row = colaboradores_df.loc[index]
+                    if not row.equals(original_row):
+                        col_id = row['id']
+                        novo_codigo = row['codigo']
+                        novo_nome = row['nome_completo']
+                        novo_cpf = row['cpf']
+                        novo_gmail = row['gmail']
+                        novo_setor_id = setores_dict.get(row['nome_setor'])
+                        
+                        if atualizar_colaborador(col_id, novo_codigo, novo_nome, novo_cpf, novo_gmail, novo_setor_id):
+                            st.toast(f"Colaborador '{novo_nome}' atualizado!", icon="✅")
             st.rerun()
-
-
