@@ -197,6 +197,22 @@ def atualizar_aparelho_completo(aparelho_id, serie, imei1, imei2, valor, modelo_
         st.error(f"Erro ao atualizar o aparelho ID {aparelho_id}: {e}")
         return False
 
+def excluir_aparelho(aparelho_id):
+    """Exclui um aparelho do banco de dados."""
+    try:
+        conn = get_db_connection()
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("DELETE FROM aparelhos WHERE id = ?", (aparelho_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        st.error(f"Erro: Não é possível excluir o aparelho ID {aparelho_id}, pois ele possui um histórico de movimentações ou manutenções.")
+        return False
+    except Exception as e:
+        st.error(f"Erro ao excluir o aparelho ID {aparelho_id}: {e}")
+        return False
+
 # --- Interface do Usuário ---
 
 modelos_list, status_list = carregar_dados_para_selects()
@@ -230,7 +246,7 @@ with col1:
                 adicionar_aparelho_e_historico(novo_serie, novo_imei1, novo_imei2, novo_valor, modelo_id, status_id)
 
 with col2:
-    with st.expander("Ver e Editar Inventário de Aparelhos", expanded=True):
+    with st.expander("Ver, Editar e Excluir Inventário de Aparelhos", expanded=True):
         inventario_df = carregar_inventario_completo()
         
         edited_df = st.data_editor(
@@ -251,13 +267,20 @@ with col2:
                 "data_cadastro": st.column_config.DateColumn("Data de Entrada", disabled=True),
             },
             hide_index=True,
+            num_rows="dynamic", # Permite adicionar e excluir linhas
             key="aparelhos_editor"
         )
         
-        if st.button("Salvar Alterações no Inventário"):
+        if st.button("Salvar Alterações"):
+            # Lógica para Exclusão
+            deleted_ids = set(inventario_df['id']) - set(edited_df['id'])
+            for aparelho_id in deleted_ids:
+                if excluir_aparelho(aparelho_id):
+                    st.toast(f"Aparelho ID {aparelho_id} excluído!", icon="🗑️")
+
+            # Lógica para Atualização
             for index, row in edited_df.iterrows():
-                # Garante que o índice existe no dataframe original antes de comparar
-                if index in inventario_df.index:
+                if index < len(inventario_df): # Apenas verifica linhas existentes
                     original_row = inventario_df.loc[index]
                     if not row.equals(original_row):
                         aparelho_id = row['id']
