@@ -145,12 +145,12 @@ def adicionar_aparelho_e_historico(serie, imei1, imei2, valor, modelo_id, status
     finally:
         conn.close()
 
-def carregar_inventario_completo():
+def carregar_inventario_completo(order_by="a.data_cadastro DESC"):
     """
-    Carrega uma visão completa do inventário, incluindo o responsável atual pelo aparelho.
+    Carrega uma visão completa do inventário, incluindo o responsável atual e permitindo ordenação.
     """
     conn = get_db_connection()
-    df = pd.read_sql_query("""
+    query = f"""
         WITH UltimoResponsavel AS (
             SELECT
                 h.aparelho_id,
@@ -174,8 +174,9 @@ def carregar_inventario_completo():
         LEFT JOIN status s ON a.status_id = s.id
         LEFT JOIN UltimoResponsavel ur ON a.id = ur.aparelho_id AND ur.rn = 1
         LEFT JOIN colaboradores c ON ur.colaborador_id = c.id
-        ORDER BY a.data_cadastro DESC
-    """, conn)
+        ORDER BY {order_by}
+    """
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
 
@@ -247,7 +248,19 @@ with col1:
 
 with col2:
     with st.expander("Ver, Editar e Excluir Inventário de Aparelhos", expanded=True):
-        inventario_df = carregar_inventario_completo()
+        
+        # --- NOVO: Caixa de seleção para ordenação ---
+        sort_options = {
+            "Data de Entrada (Mais Recente)": "a.data_cadastro DESC",
+            "Número de Série (A-Z)": "a.numero_serie ASC",
+            "Modelo (A-Z)": "modelo_completo ASC",
+            "Status (A-Z)": "s.nome_status ASC",
+            "Responsável (A-Z)": "responsavel_atual ASC"
+        }
+        sort_selection = st.selectbox("Organizar por:", options=sort_options.keys())
+
+        # Carrega os dados com a ordenação selecionada
+        inventario_df = carregar_inventario_completo(order_by=sort_options[sort_selection])
         
         edited_df = st.data_editor(
             inventario_df,
