@@ -125,16 +125,33 @@ def adicionar_colaborador(nome, cpf, gmail, setor_id, codigo):
     except Exception as e:
         st.error(f"Erro ao adicionar colaborador: {e}")
 
-def carregar_colaboradores():
+def carregar_colaboradores(order_by="c.nome_completo ASC"):
+    """Carrega os colaboradores, permitindo a ordenação dinâmica e tratando erros."""
     conn = get_db_connection()
-    df = pd.read_sql_query("""
+    query = f"""
         SELECT c.id, c.codigo, c.nome_completo, c.cpf, c.gmail, s.nome_setor
         FROM colaboradores c
         LEFT JOIN setores s ON c.setor_id = s.id
-        ORDER BY c.nome_completo
-    """, conn)
-    conn.close()
-    return df
+        ORDER BY {order_by}
+    """
+    try:
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        return df
+    except sqlite3.OperationalError as e:
+        st.error(f"Erro ao ordenar os dados: {e}. Verifique se todos os 'Códigos' são numéricos para usar essa ordenação.")
+        # Fallback para a ordenação padrão em caso de erro
+        conn_fallback = get_db_connection()
+        fallback_query = """
+            SELECT c.id, c.codigo, c.nome_completo, c.cpf, c.gmail, s.nome_setor
+            FROM colaboradores c
+            LEFT JOIN setores s ON c.setor_id = s.id
+            ORDER BY c.nome_completo ASC
+        """
+        df_fallback = pd.read_sql_query(fallback_query, conn_fallback)
+        conn_fallback.close()
+        return df_fallback
+
 
 def atualizar_colaborador(col_id, codigo, nome, cpf, gmail, setor_id):
     try:
@@ -192,7 +209,18 @@ with col1:
 
 with col2:
     with st.expander("Ver, Editar e Excluir Colaboradores", expanded=True):
-        colaboradores_df = carregar_colaboradores()
+        
+        # Caixa de seleção para ordenação
+        sort_options = {
+            "Nome (A-Z)": "c.nome_completo ASC",
+            "Código (Crescente)": "CAST(c.codigo AS INTEGER) ASC",
+            "Setor (A-Z)": "s.nome_setor ASC"
+        }
+        sort_selection = st.selectbox("Organizar por:", options=sort_options.keys())
+
+        # Carrega os dados com a ordenação selecionada
+        colaboradores_df = carregar_colaboradores(order_by=sort_options[sort_selection])
+        
         setores_options = list(setores_dict.keys())
 
         edited_df = st.data_editor(
