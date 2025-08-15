@@ -8,7 +8,7 @@ from auth import show_login_form
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- NOVO: Configuração de Layout (Header, Footer e CSS) ---
+# --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
     /* Estilos da Logo */
@@ -95,7 +95,6 @@ with st.sidebar:
 
 
 # --- Configurações da Página ---
-st.set_page_config(page_title="Movimentações", layout="wide")
 st.title("Registar Movimentação de Aparelho")
 st.markdown("---")
 
@@ -145,9 +144,10 @@ def registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, localizac
     finally:
         conn.close()
 
-def carregar_historico_completo():
+def carregar_historico_completo(order_by="h.data_movimentacao DESC"):
+    """Carrega o histórico completo de movimentações, permitindo ordenação."""
     conn = get_db_connection()
-    df = pd.read_sql_query("""
+    query = f"""
         SELECT 
             h.id, h.data_movimentacao, a.numero_serie, mo.nome_modelo,
             c.nome_completo as colaborador, s.nome_status,
@@ -157,8 +157,9 @@ def carregar_historico_completo():
         JOIN status s ON h.status_id = s.id
         LEFT JOIN colaboradores c ON h.colaborador_id = c.id
         LEFT JOIN modelos mo ON a.modelo_id = mo.id
-        ORDER BY h.data_movimentacao DESC
-    """, conn)
+        ORDER BY {order_by}
+    """
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
 
@@ -204,7 +205,19 @@ with st.form("form_movimentacao", clear_on_submit=True):
 st.markdown("---")
 
 with st.expander("Ver Histórico de Movimentações", expanded=False):
-    historico_df = carregar_historico_completo()
+    
+    # --- NOVO: Caixa de seleção para ordenação ---
+    sort_options = {
+        "Data (Mais Recente)": "h.data_movimentacao DESC",
+        "Colaborador (A-Z)": "colaborador ASC",
+        "Aparelho (N/S A-Z)": "a.numero_serie ASC",
+        "Status (A-Z)": "s.nome_status ASC"
+    }
+    sort_selection = st.selectbox("Organizar histórico por:", options=sort_options.keys())
+
+    # Carrega os dados com a ordenação selecionada
+    historico_df = carregar_historico_completo(order_by=sort_options[sort_selection])
+    
     st.dataframe(historico_df, use_container_width=True, hide_index=True, column_config={
         "data_movimentacao": "Data e Hora",
         "numero_serie": "N/S do Aparelho",
@@ -214,5 +227,3 @@ with st.expander("Ver Histórico de Movimentações", expanded=False):
         "localizacao_atual": "Localização",
         "observacoes": "Observações"
     })
-
-
