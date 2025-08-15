@@ -4,9 +4,12 @@ import sqlite3
 from datetime import date
 from auth import show_login_form
 
-# --- Autenticação ---
+# --- Verificação de Autenticação ---
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
+
+# --- Configurações da Página (Movido para o topo) ---
+st.set_page_config(page_title="Gestão de Aparelhos", layout="wide")
 
 # --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
@@ -93,144 +96,200 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
+# --- Conteúdo Principal da Página ---
+st.title("Gestão de Aparelhos")
+st.markdown("---")
 
-# --- Funções do DB ---
+# --- Funções de Banco de Dados ---
+
 def get_db_connection():
     conn = sqlite3.connect('inventario.db')
     conn.row_factory = sqlite3.Row
     return conn
 
-def carregar_setores():
+def carregar_dados_para_selects():
     conn = get_db_connection()
-    setores = conn.execute("SELECT id, nome_setor FROM setores ORDER BY nome_setor").fetchall()
+    modelos = conn.execute("""
+        SELECT m.id, m.nome_modelo, ma.nome_marca 
+        FROM modelos m 
+        JOIN marcas ma ON m.marca_id = ma.id 
+        ORDER BY ma.nome_marca, m.nome_modelo
+    """).fetchall()
+    status = conn.execute("SELECT id, nome_status FROM status ORDER BY nome_status").fetchall()
     conn.close()
-    return setores
+    return modelos, status
 
-def adicionar_colaborador(nome, cpf, gmail, setor_id, codigo):
-    if not nome or not cpf or not codigo:
-        st.error("Nome, CPF e Código são campos obrigatórios.")
-        return
+def adicionar_aparelho_e_historico(serie, imei1, imei2, valor, modelo_id, status_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    data_hoje = date.today()
     try:
-        conn = get_db_connection()
-        data_hoje = date.today()
-        conn.execute(
-            "INSERT INTO colaboradores (nome_completo, cpf, gmail, setor_id, data_cadastro, codigo) VALUES (?, ?, ?, ?, ?, ?)",
-            (nome, cpf, gmail, setor_id, data_hoje, codigo)
+        cursor.execute("BEGIN TRANSACTION;")
+        cursor.execute(
+            "INSERT INTO aparelhos (numero_serie, imei1, imei2, valor, modelo_id, status_id, data_cadastro) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (serie, imei1, imei2, valor, modelo_id, status_id, data_hoje)
+        )
+        aparelho_id = cursor.lastrowid
+        cursor.execute(
+            "INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, status_id, localizacao_atual, observacoes) VALUES (?, ?, ?, ?, ?)",
+            (date.today(), aparelho_id, status_id, "Estoque Interno", "Entrada inicial no sistema.")
         )
         conn.commit()
-        conn.close()
-        st.success(f"Colaborador '{nome}' adicionado com sucesso!")
+        st.success(f"Aparelho N/S '{serie}' cadastrado com sucesso!")
     except sqlite3.IntegrityError:
-        st.warning("Um colaborador com este CPF ou Código já existe.")
+        conn.rollback()
+        st.error(f"O aparelho com Número de Série '{serie}' já existe.")
     except Exception as e:
-        st.error(f"Erro ao adicionar colaborador: {e}")
+        conn.rollback()
+        st.error(f"Ocorreu um erro: {e}")
+    finally:
+        conn.close()
 
-def carregar_colaboradores():
+def carregar_inventario_completo():
+    """
+    Carrega uma visão completa do inventário, incluindo o responsável atual pelo aparelho.
+    """
     conn = get_db_connection()
     df = pd.read_sql_query("""
-        SELECT c.id, c.codigo, c.nome_completo, c.cpf, c.gmail, s.nome_setor
-        FROM colaboradores c
-        LEFT JOIN setores s ON c.setor_id = s.id
-        ORDER BY c.nome_completo
+        WITH UltimoResponsavel AS (
+            SELECT
+                h.aparelho_id,
+                h.colaborador_id,
+                ROW_NUMBER() OVER(PARTITION BY h.aparelho_id ORDER BY h.data_movimentacao DESC) as rn
+            FROM historico_movimentacoes h
+        )
+        SELECT 
+            a.id,
+            a.numero_serie,
+            ma.nome_marca || ' - ' || mo.nome_modelo as modelo_completo,
+            s.nome_status,
+            c.nome_completo as responsavel_atual,
+            a.valor,
+            a.imei1,
+            a.imei2,
+            a.data_cadastro
+        FROM aparelhos a
+        LEFT JOIN modelos mo ON a.modelo_id = mo.id
+        LEFT JOIN marcas ma ON mo.marca_id = ma.id
+        LEFT JOIN status s ON a.status_id = s.id
+        LEFT JOIN UltimoResponsavel ur ON a.id = ur.aparelho_id AND ur.rn = 1
+        LEFT JOIN colaboradores c ON ur.colaborador_id = c.id
+        ORDER BY a.data_cadastro DESC
     """, conn)
     conn.close()
     return df
 
-def atualizar_colaborador(col_id, codigo, nome, cpf, gmail, setor_id):
+def atualizar_aparelho_completo(aparelho_id, serie, imei1, imei2, valor, modelo_id):
+    """Atualiza todos os campos editáveis de um aparelho."""
     try:
         conn = get_db_connection()
         conn.execute(
-            "UPDATE colaboradores SET codigo = ?, nome_completo = ?, cpf = ?, gmail = ?, setor_id = ? WHERE id = ?",
-            (codigo, nome, cpf, gmail, setor_id, col_id)
+            "UPDATE aparelhos SET numero_serie = ?, imei1 = ?, imei2 = ?, valor = ?, modelo_id = ? WHERE id = ?",
+            (serie, imei1, imei2, valor, modelo_id, aparelho_id)
         )
         conn.commit()
         conn.close()
         return True
     except sqlite3.IntegrityError:
-        st.error(f"Erro: O CPF '{cpf}' já pertence a outro colaborador.")
+        st.error(f"Erro: O Número de Série '{serie}' já pertence a outro aparelho.")
         return False
     except Exception as e:
-        st.error(f"Erro ao atualizar o colaborador ID {col_id}: {e}")
+        st.error(f"Erro ao atualizar o aparelho ID {aparelho_id}: {e}")
         return False
 
-def excluir_colaborador(col_id):
+def excluir_aparelho(aparelho_id):
+    """Exclui um aparelho do banco de dados."""
     try:
         conn = get_db_connection()
         conn.execute("PRAGMA foreign_keys = ON;")
-        conn.execute("DELETE FROM colaboradores WHERE id = ?", (col_id,))
+        conn.execute("DELETE FROM aparelhos WHERE id = ?", (aparelho_id,))
         conn.commit()
         conn.close()
         return True
     except sqlite3.IntegrityError:
-        st.error(f"Erro: Não é possível excluir o colaborador ID {col_id}, pois ele possui aparelhos ou outros registos associados.")
+        st.error(f"Erro: Não é possível excluir o aparelho ID {aparelho_id}, pois ele possui um histórico de movimentações ou manutenções.")
         return False
     except Exception as e:
-        st.error(f"Erro ao excluir o colaborador ID {col_id}: {e}")
+        st.error(f"Erro ao excluir o aparelho ID {aparelho_id}: {e}")
         return False
 
-# --- UI ---
-st.title("Gestão de Colaboradores")
-st.markdown("---")
+# --- Interface do Usuário ---
 
-setores_list = carregar_setores()
-setores_dict = {s['nome_setor']: s['id'] for s in setores_list}
+modelos_list, status_list = carregar_dados_para_selects()
+modelos_dict = {f"{m['nome_marca']} - {m['nome_modelo']}": m['id'] for m in modelos_list}
 
 col1, col2 = st.columns([1, 2])
 
 with col1:
-    st.subheader("Adicionar Novo Colaborador")
-    with st.form("form_novo_colaborador", clear_on_submit=True):
-        novo_codigo = st.text_input("Código*")
-        novo_nome = st.text_input("Nome Completo*")
-        novo_cpf = st.text_input("CPF*")
-        novo_gmail = st.text_input("Gmail")
-        setor_selecionado_nome = st.selectbox("Setor", options=setores_dict.keys())
+    st.subheader("Adicionar Novo Aparelho")
+    with st.form("form_novo_aparelho", clear_on_submit=True):
+        novo_serie = st.text_input("Número de Série*")
+        
+        modelo_selecionado_str = st.selectbox(
+            "Modelo*",
+            options=modelos_dict.keys(),
+            help="Clique na lista e comece a digitar para pesquisar."
+        )
+        
+        novo_imei1 = st.text_input("IMEI 1")
+        novo_imei2 = st.text_input("IMEI 2")
+        novo_valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
+        status_dict = {s['nome_status']: s['id'] for s in status_list}
+        status_selecionado_str = st.selectbox("Status Inicial*", options=status_dict.keys(), index=0)
 
-        if st.form_submit_button("Adicionar Colaborador"):
-            setor_id = setores_dict.get(setor_selecionado_nome)
-            adicionar_colaborador(novo_nome, novo_cpf, novo_gmail, setor_id, novo_codigo)
+        if st.form_submit_button("Adicionar Aparelho"):
+            if not novo_serie or not modelo_selecionado_str:
+                st.error("Número de Série e Modelo são campos obrigatórios.")
+            else:
+                modelo_id = modelos_dict[modelo_selecionado_str]
+                status_id = status_dict[status_selecionado_str]
+                adicionar_aparelho_e_historico(novo_serie, novo_imei1, novo_imei2, novo_valor, modelo_id, status_id)
 
 with col2:
-    with st.expander("Ver, Editar e Excluir Colaboradores", expanded=True):
-        colaboradores_df = carregar_colaboradores()
-        setores_options = list(setores_dict.keys())
-
+    with st.expander("Ver, Editar e Excluir Inventário de Aparelhos", expanded=True):
+        inventario_df = carregar_inventario_completo()
+        
         edited_df = st.data_editor(
-            colaboradores_df,
+            inventario_df,
             column_config={
                 "id": st.column_config.NumberColumn("ID", disabled=True),
-                "codigo": st.column_config.TextColumn("Código", required=True),
-                "nome_completo": st.column_config.TextColumn("Nome Completo", required=True),
-                "cpf": st.column_config.TextColumn("CPF", required=True),
-                "gmail": st.column_config.TextColumn("Gmail"),
-                "nome_setor": st.column_config.SelectboxColumn(
-                    "Setor", options=setores_options, required=True
+                "numero_serie": st.column_config.TextColumn("N/S", required=True),
+                "modelo_completo": st.column_config.SelectboxColumn(
+                    "Modelo",
+                    options=modelos_dict.keys(),
+                    required=True
                 ),
+                "nome_status": st.column_config.TextColumn("Status Atual", disabled=True),
+                "responsavel_atual": st.column_config.TextColumn("Responsável Atual", disabled=True),
+                "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
+                "imei1": st.column_config.TextColumn("IMEI 1"),
+                "imei2": st.column_config.TextColumn("IMEI 2"),
+                "data_cadastro": st.column_config.DateColumn("Data de Entrada", disabled=True),
             },
             hide_index=True,
             num_rows="dynamic", # Permite adicionar e excluir linhas
-            key="colaboradores_editor"
+            key="aparelhos_editor"
         )
         
         if st.button("Salvar Alterações"):
             # Lógica para Exclusão
-            deleted_ids = set(colaboradores_df['id']) - set(edited_df['id'])
-            for col_id in deleted_ids:
-                if excluir_colaborador(col_id):
-                    st.toast(f"Colaborador ID {col_id} excluído!", icon="🗑️")
+            deleted_ids = set(inventario_df['id']) - set(edited_df['id'])
+            for aparelho_id in deleted_ids:
+                if excluir_aparelho(aparelho_id):
+                    st.toast(f"Aparelho ID {aparelho_id} excluído!", icon="🗑️")
 
             # Lógica para Atualização
             for index, row in edited_df.iterrows():
-                if index < len(colaboradores_df): # Apenas verifica linhas existentes
-                    original_row = colaboradores_df.loc[index]
+                if index < len(inventario_df): # Apenas verifica linhas existentes
+                    original_row = inventario_df.loc[index]
                     if not row.equals(original_row):
-                        col_id = row['id']
-                        novo_codigo = row['codigo']
-                        novo_nome = row['nome_completo']
-                        novo_cpf = row['cpf']
-                        novo_gmail = row['gmail']
-                        novo_setor_id = setores_dict.get(row['nome_setor'])
+                        aparelho_id = row['id']
+                        novo_serie = row['numero_serie']
+                        novo_imei1 = row['imei1']
+                        novo_imei2 = row['imei2']
+                        novo_valor = row['valor']
+                        novo_modelo_id = modelos_dict[row['modelo_completo']]
                         
-                        if atualizar_colaborador(col_id, novo_codigo, novo_nome, novo_cpf, novo_gmail, novo_setor_id):
-                            st.toast(f"Colaborador '{novo_nome}' atualizado!", icon="✅")
+                        if atualizar_aparelho_completo(aparelho_id, novo_serie, novo_imei1, novo_imei2, novo_valor, novo_modelo_id):
+                            st.toast(f"Aparelho N/S '{row['numero_serie']}' atualizado!", icon="✅")
             st.rerun()
