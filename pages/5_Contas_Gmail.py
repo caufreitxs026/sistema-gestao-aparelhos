@@ -4,11 +4,10 @@ import sqlite3
 from auth import show_login_form
 
 # --- Autenticação ---
-# Se o utilizador não estiver logado, redireciona para a página principal de login
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- NOVO: Configuração de Layout (Header, Footer e CSS) ---
+# --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
     /* Estilos da Logo */
@@ -95,7 +94,6 @@ with st.sidebar:
 
 
 # --- Configurações da Página ---
-st.set_page_config(page_title="Gestão de Contas Gmail", layout="wide")
 st.title("Gestão de Contas Gmail")
 st.markdown("---")
 
@@ -118,7 +116,6 @@ def adicionar_conta(email, senha, tel_rec, email_rec, setor_id, col_id):
         return
     try:
         conn = get_db_connection()
-        # A senha não será hasheada aqui, conforme o design inicial
         conn.execute(
             "INSERT INTO contas_gmail (email, senha, telefone_recuperacao, email_recuperacao, setor_id, colaborador_id) VALUES (?, ?, ?, ?, ?, ?)",
             (email, senha, tel_rec, email_rec, setor_id, col_id)
@@ -131,17 +128,19 @@ def adicionar_conta(email, senha, tel_rec, email_rec, setor_id, col_id):
     except Exception as e:
         st.error(f"Ocorreu um erro: {e}")
 
-def carregar_contas():
+def carregar_contas(order_by="cg.email ASC"):
+    """Carrega as contas, permitindo a ordenação dinâmica."""
     conn = get_db_connection()
-    df = pd.read_sql_query("""
+    query = f"""
         SELECT 
             cg.id, cg.email, cg.senha, cg.telefone_recuperacao, 
             cg.email_recuperacao, s.nome_setor, c.nome_completo as colaborador
         FROM contas_gmail cg
         LEFT JOIN setores s ON cg.setor_id = s.id
         LEFT JOIN colaboradores c ON cg.colaborador_id = c.id
-        ORDER BY cg.email
-    """, conn)
+        ORDER BY {order_by}
+    """
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
 
@@ -176,7 +175,7 @@ with col1:
         tel_rec = st.text_input("Telefone de Recuperação")
         email_rec = st.text_input("E-mail de Recuperação")
         setor_sel = st.selectbox("Função (Setor)", options=setores_dict.keys())
-        col_sel = st.selectbox("Vinculado ao Colaborador", options=colaboradores_dict.keys())
+        col_sel = st.selectbox("Vinculado ao Colaborador", options=colaboradores_dict.keys(), help="Clique na lista e comece a digitar para pesquisar.")
 
         if st.form_submit_button("Adicionar Conta"):
             setor_id = setores_dict.get(setor_sel)
@@ -185,7 +184,17 @@ with col1:
 
 with col2:
     with st.expander("Ver e Editar Contas Cadastradas", expanded=True):
-        contas_df = carregar_contas()
+        
+        # --- NOVO: Caixa de seleção para ordenação ---
+        sort_options = {
+            "Email (A-Z)": "cg.email ASC",
+            "Setor (A-Z)": "s.nome_setor ASC",
+            "Colaborador (A-Z)": "colaborador ASC"
+        }
+        sort_selection = st.selectbox("Organizar por:", options=sort_options.keys())
+
+        # Carrega os dados com a ordenação selecionada
+        contas_df = carregar_contas(order_by=sort_options[sort_selection])
         
         setores_options = list(setores_dict.keys())
         colaboradores_options = list(colaboradores_dict.keys())
@@ -210,7 +219,7 @@ with col2:
                 original_row = contas_df.loc[index]
                 if not row.equals(original_row):
                     conta_id = row['id']
-                    nova_senha = row['senha'] if row['senha'] else original_row['senha'] # Mantém a senha antiga se o campo estiver vazio
+                    nova_senha = row['senha'] if row['senha'] and row['senha'] != '******' else original_row['senha']
                     novo_tel = row['telefone_recuperacao']
                     novo_email_rec = row['email_recuperacao']
                     novo_setor_id = setores_dict.get(row['nome_setor'])
@@ -219,5 +228,3 @@ with col2:
                     if atualizar_conta(conta_id, nova_senha, novo_tel, novo_email_rec, novo_setor_id, novo_col_id):
                         st.toast(f"Conta '{row['email']}' atualizada!", icon="✅")
             st.rerun()
-
-
