@@ -176,7 +176,7 @@ else:
     with col_titulo:
         st.title("Dashboard Gerencial")
     with col_botao:
-        if st.button("🔄 Atualizar Dados"):
+        if st.button("Atualizar Dados"):
             carregar_dados_dashboard.clear()
             st.rerun()
 
@@ -231,3 +231,4 @@ else:
     with acol2:
         st.markdown("###### Últimas 5 Movimentações")
         st.dataframe(acao_rapida['ultimas_mov'], hide_index=True, use_container_width=True)
+
