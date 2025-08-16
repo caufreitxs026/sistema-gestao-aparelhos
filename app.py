@@ -60,7 +60,7 @@ else:
         conn.row_factory = sqlite3.Row
         return conn
 
-    @st.cache_data(ttl=600) # Cache para otimizar o desempenho
+    @st.cache_data(ttl=600) # O cache otimiza o desempenho, mas precisa ser limpo para ver novos dados
     def carregar_dados_dashboard():
         conn = get_db_connection()
         
@@ -125,7 +125,17 @@ else:
         }
 
     # --- Conteúdo do Dashboard ---
-    st.title("Dashboard Gerencial")
+    
+    # Título e Botão de Atualização
+    col_titulo, col_botao = st.columns([3, 1])
+    with col_titulo:
+        st.title("Dashboard Gerencial")
+    with col_botao:
+        if st.button("🔄 Atualizar Dados"):
+            # Limpa o cache da função que carrega os dados
+            carregar_dados_dashboard.clear()
+            st.rerun()
+
     st.markdown("---")
 
     dados = carregar_dados_dashboard()
