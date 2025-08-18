@@ -244,6 +244,35 @@ def executar_pesquisa_movimentacoes(filtros):
     conn.close()
     return df
 
+def executar_criar_conta_gmail(dados):
+    """Adiciona uma nova conta Gmail ao banco de dados."""
+    if not dados or not dados.get('email'):
+        return "Não foi possível criar a conta. O e-mail é obrigatório."
+    
+    conn = get_db_connection()
+    try:
+        setor_id, colaborador_id = None, None
+        if dados.get('nome_setor'):
+            setor = conn.execute("SELECT id FROM setores WHERE nome_setor LIKE ?", (f"%{dados['nome_setor']}%",)).fetchone()
+            if setor: setor_id = setor['id']
+        
+        if dados.get('nome_colaborador'):
+            colaborador = conn.execute("SELECT id FROM colaboradores WHERE nome_completo LIKE ?", (f"%{dados['nome_colaborador']}%",)).fetchone()
+            if colaborador: colaborador_id = colaborador['id']
+
+        conn.execute(
+            "INSERT INTO contas_gmail (email, senha, telefone_recuperacao, email_recuperacao, setor_id, colaborador_id) VALUES (?, ?, ?, ?, ?, ?)",
+            (dados['email'], dados.get('senha'), dados.get('telefone_recuperacao'), dados.get('email_recuperacao'), setor_id, colaborador_id)
+        )
+        conn.commit()
+        return f"Conta Gmail '{dados['email']}' criada com sucesso!"
+    except sqlite3.IntegrityError:
+        return f"Erro: A conta Gmail '{dados['email']}' já existe."
+    except Exception as e:
+        return f"Ocorreu um erro inesperado ao criar a conta: {e}"
+    finally:
+        conn.close()
+
 # --- Lógica do Chatbot ---
 
 schema = {
@@ -251,7 +280,7 @@ schema = {
     "properties": {
         "acao": {
             "type": "STRING",
-            "enum": ["criar_colaborador", "criar_aparelho", "pesquisar_aparelho", "pesquisar_movimentacoes", "limpar_chat", "logout", "saudacao", "desconhecido"]
+            "enum": ["criar_colaborador", "criar_aparelho", "criar_conta_gmail", "pesquisar_aparelho", "pesquisar_movimentacoes", "limpar_chat", "logout", "saudacao", "desconhecido"]
         },
         "dados": {
             "type": "OBJECT",
@@ -260,7 +289,10 @@ schema = {
                 "cpf": {"type": "STRING"}, "gmail": {"type": "STRING"}, "nome_setor": {"type": "STRING"},
                 "marca": {"type": "STRING"}, "modelo": {"type": "STRING"},
                 "numero_serie": {"type": "STRING"}, "imei1": {"type": "STRING"},
-                "imei2": {"type": "STRING"}, "valor": {"type": "NUMBER"}
+                "imei2": {"type": "STRING"}, "valor": {"type": "NUMBER"},
+                "email": {"type": "STRING"}, "senha": {"type": "STRING"},
+                "telefone_recuperacao": {"type": "STRING"}, "email_recuperacao": {"type": "STRING"},
+                "nome_colaborador": {"type": "STRING"}
             }
         },
         "filtros": { "type": "OBJECT", "properties": { "nome_colaborador": {"type": "STRING"}, "numero_serie": {"type": "STRING"}, "data": {"type": "STRING", "description": "Data no formato YYYY-MM-DD"} } }
@@ -306,7 +338,9 @@ def get_info_text():
     - **Colaborador:** Comece por dizer "criar colaborador". Eu irei guiá-lo sobre os dados necessários.
       - *Exemplo de dados:* `código 123, nome João Silva, cpf 11122233344, setor TI`
     - **Aparelho:** Comece por dizer "criar aparelho". Eu irei guiá-lo sobre os dados necessários.
-      - *Exemplo de dados:* `marca Samsung, modelo S24, n/s ABC123XYZ, valor 5500`
+      - *Exemplo de dados:* `marca Samsung, modelo S24, n/s ABC123XYZ, valor 5500, imei1 111, imei2 222`
+    - **Conta Gmail:** Comece por dizer "criar conta gmail". Eu irei guiá-lo.
+      - *Exemplo de dados:* `email exemplo@gmail.com, senha 123, setor TI, colaborador João Silva`
 
     **3. Comandos do Chat:**
     - **`#info`:** Mostra esta mensagem de ajuda.
@@ -348,20 +382,23 @@ if prompt := st.chat_input("Como posso ajudar?"):
             acao = response_data.get('acao')
             dados = response_data.get('dados')
             
-            if acao in ['criar_colaborador', 'criar_aparelho']:
+            if acao in ['criar_colaborador', 'criar_aparelho', 'criar_conta_gmail']:
                 if (acao == 'criar_colaborador' and not (dados and dados.get('nome_completo') and dados.get('codigo'))) or \
-                   (acao == 'criar_aparelho' and not (dados and all(k in dados for k in ['marca', 'modelo', 'numero_serie', 'valor']))):
+                   (acao == 'criar_aparelho' and not (dados and all(k in dados for k in ['marca', 'modelo', 'numero_serie', 'valor']))) or \
+                   (acao == 'criar_conta_gmail' and not (dados and dados.get('email'))):
                     if acao == 'criar_colaborador':
                         response_content = "Entendido. Para adicionar um novo colaborador, por favor, informe os seguintes dados: **Código**, **Nome Completo**, **CPF**, **Gmail** (opcional) e **Setor**."
-                    else:
+                    elif acao == 'criar_aparelho':
                         response_content = "Entendido. Para adicionar um novo aparelho, por favor, informe: **Marca**, **Modelo**, **Número de Série**, **Valor** e **IMEIs** (opcional)."
+                    else:
+                        response_content = "Entendido. Para adicionar uma nova conta Gmail, informe: **Email**, **Senha**, **Telefone de Recuperação** (opcional), **Email de Recuperação** (opcional), **Setor** e **Colaborador** (opcional)."
                     st.markdown(response_content)
                     st.session_state.messages.append({"role": "assistant", "content": response_content})
                 else:
                     st.session_state.pending_action = {"acao": acao, "dados": dados}
-                    entidade = "colaborador" if acao == 'criar_colaborador' else 'aparelho'
-                    nome_entidade = dados.get('nome_completo') if entidade == 'colaborador' else f"{dados.get('marca')} {dados.get('modelo')}"
-                    response_content = f"A registar o {entidade} **{nome_entidade}**. Confirma as informações?"
+                    entidade = "colaborador" if acao == 'criar_colaborador' else ('aparelho' if acao == 'criar_aparelho' else 'conta Gmail')
+                    nome_entidade = dados.get('nome_completo') or f"{dados.get('marca')} {dados.get('modelo')}" or dados.get('email')
+                    response_content = f"A registar a {entidade} **{nome_entidade}**. Confirma as informações?"
                     st.markdown(response_content)
                     st.session_state.messages.append({"role": "assistant", "content": response_content})
 
@@ -420,6 +457,8 @@ if st.session_state.pending_action:
                 resultado = executar_criar_colaborador(action_data["dados"])
             elif action_data["acao"] == "criar_aparelho":
                 resultado = executar_criar_aparelho(action_data["dados"])
+            elif action_data["acao"] == "criar_conta_gmail":
+                resultado = executar_criar_conta_gmail(action_data["dados"])
             
             st.success(resultado)
             st.session_state.messages.append({"role": "assistant", "content": f"✅ **Sucesso:** {resultado}"})
