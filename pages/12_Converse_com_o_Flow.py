@@ -280,44 +280,49 @@ schema = {
     "properties": {
         "acao": {
             "type": "STRING",
-            "enum": ["criar_colaborador", "criar_aparelho", "criar_conta_gmail", "pesquisar_aparelho", "pesquisar_movimentacoes", "limpar_chat", "logout", "saudacao", "desconhecido"]
+            "enum": ["iniciar_criacao", "fornecer_dado", "pesquisar_aparelho", "pesquisar_movimentacoes", "limpar_chat", "logout", "saudacao", "desconhecido"]
         },
+        "entidade": {"type": "STRING", "enum": ["colaborador", "aparelho", "conta_gmail"]},
         "dados": {
             "type": "OBJECT",
             "properties": {
-                "nome_completo": {"type": "STRING"}, "codigo": {"type": "STRING"},
-                "cpf": {"type": "STRING"}, "gmail": {"type": "STRING"}, "nome_setor": {"type": "STRING"},
-                "marca": {"type": "STRING"}, "modelo": {"type": "STRING"},
-                "numero_serie": {"type": "STRING"}, "imei1": {"type": "STRING"},
-                "imei2": {"type": "STRING"}, "valor": {"type": "NUMBER"},
-                "email": {"type": "STRING"}, "senha": {"type": "STRING"},
-                "telefone_recuperacao": {"type": "STRING"}, "email_recuperacao": {"type": "STRING"},
-                "nome_colaborador": {"type": "STRING"}
+                "valor_dado": {"type": "STRING", "description": "O valor fornecido pelo utilizador para um campo específico."}
             }
         },
-        "filtros": { "type": "OBJECT", "properties": { "nome_colaborador": {"type": "STRING"}, "numero_serie": {"type": "STRING"}, "data": {"type": "STRING", "description": "Data no formato YYYY-MM-DD"} } }
+        "filtros": { "type": "OBJECT", "properties": { "nome_colaborador": {"type": "STRING"}, "numero_serie": {"type": "STRING"}, "data": {"type": "STRING"} } }
     },
     "required": ["acao"]
 }
 
-async def get_flow_response(prompt, user_name):
-    contextual_prompt = f"O utilizador '{user_name}' pediu: {prompt}"
+
+async def get_flow_response(prompt, user_name, current_action=None):
+    """Envia o prompt para a API Gemini e retorna a resposta estruturada."""
+    if current_action:
+        contextual_prompt = f"O utilizador '{user_name}' está no meio de um processo de criação ({current_action}) e forneceu a seguinte informação: {prompt}. Interprete este dado como o valor para o campo que está a ser solicitado."
+    else:
+        contextual_prompt = f"O utilizador '{user_name}' pediu: {prompt}"
+    
     chatHistory = [
-        {"role": "user", "parts": [{"text": "Você é o Flow, um assistente para um sistema de gestão de ativos. Sua função é interpretar os pedidos do utilizador e traduzi-los para um formato JSON estruturado, de acordo com o schema fornecido. Seja conciso e direto."}]},
+        {"role": "user", "parts": [{"text": "Você é o Flow, um assistente para um sistema de gestão de ativos. Sua função é interpretar os pedidos do utilizador e traduzi-los para um formato JSON estruturado, de acordo com o schema fornecido. Se o utilizador iniciar um processo de criação (ex: 'criar aparelho'), a sua ação deve ser 'iniciar_criacao' e a entidade correspondente. Se o utilizador fornecer um dado no meio de uma conversa, a sua ação deve ser 'fornecer_dado'. Seja conciso e direto."}]},
         {"role": "model", "parts": [{"text": "Entendido. Estou pronto para processar os pedidos e retornar o JSON correspondente."}]},
         {"role": "user", "parts": [{"text": contextual_prompt}]}
     ]
+    
     payload = { "contents": chatHistory, "generationConfig": { "responseMimeType": "application/json", "responseSchema": schema } }
+    
     try:
         apiKey = st.secrets["GEMINI_API_KEY"]
     except KeyError:
         return {"acao": "desconhecido", "dados": {"erro": "Chave de API não configurada."}}
+
     apiUrl = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={apiKey}"
+    
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(apiUrl, headers={'Content-Type': 'application/json'}, json=payload, timeout=30)
         response.raise_for_status()
         result = response.json()
+        
         if result.get('candidates'):
             json_text = result['candidates'][0]['content']['parts'][0]['text']
             return json.loads(json_text)
@@ -334,13 +339,11 @@ def get_info_text():
     - **Aparelhos:** Diga "pesquisar aparelho do [nome do colaborador]" ou "encontrar aparelho com n/s [número de série]".
     - **Movimentações:** Diga "mostrar histórico do [nome do colaborador]", "ver movimentações do aparelho [número de série]" ou "o que aconteceu em [data no formato AAAA-MM-DD]?".
 
-    **2. Para Criar Novos Registos:**
-    - **Colaborador:** Comece por dizer "criar colaborador". Eu irei guiá-lo sobre os dados necessários.
-      - *Exemplo de dados:* `código 123, nome João Silva, cpf 11122233344, setor TI`
-    - **Aparelho:** Comece por dizer "criar aparelho". Eu irei guiá-lo sobre os dados necessários.
-      - *Exemplo de dados:* `marca Samsung, modelo S24, n/s ABC123XYZ, valor 5500, imei1 111, imei2 222`
-    - **Conta Gmail:** Comece por dizer "criar conta gmail". Eu irei guiá-lo.
-      - *Exemplo de dados:* `email exemplo@gmail.com, senha 123, setor TI, colaborador João Silva`
+    **2. Para Criar Novos Registos (Fluxo Guiado):**
+    - **Colaborador:** Comece por dizer "criar colaborador".
+    - **Aparelho:** Comece por dizer "criar aparelho".
+    - **Conta Gmail:** Comece por dizer "criar conta gmail".
+    Eu irei guiá-lo passo a passo, pedindo cada informação necessária.
 
     **3. Comandos do Chat:**
     - **`#info`:** Mostra esta mensagem de ajuda.
@@ -350,16 +353,29 @@ def get_info_text():
     Estou aqui para ajudar a tornar a sua gestão mais rápida e fácil!
     """
 
+# --- Campos de Cadastro ---
+CAMPOS_CADASTRO = {
+    "colaborador": ["codigo", "nome_completo", "cpf", "gmail", "nome_setor"],
+    "aparelho": ["marca", "modelo", "numero_serie", "valor", "imei1", "imei2"],
+    "conta_gmail": ["email", "senha", "telefone_recuperacao", "email_recuperacao", "nome_setor", "nome_colaborador"]
+}
+
 # --- Interface do Chatbot ---
 st.title("💬 Converse com o Flow")
 st.markdown("---")
 st.info("Sou o Flow, seu assistente inteligente. Diga `#info` para ver os comandos, `limpar chat` para recomeçar ou `encerrar chat` para sair.")
 
+# Inicialização dos estados da sessão
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": f"Olá {st.session_state['user_name']}! Como posso ajudar a gerir os seus ativos hoje? Diga `#info` para ver o que posso fazer."}]
+    st.session_state.messages = [{"role": "assistant", "content": f"Olá {st.session_state['user_name']}! Como posso ajudar?"}]
 if "pending_action" not in st.session_state:
     st.session_state.pending_action = None
+if "conversa_em_andamento" not in st.session_state:
+    st.session_state.conversa_em_andamento = None
+if "dados_recolhidos" not in st.session_state:
+    st.session_state.dados_recolhidos = {}
 
+# Exibe o histórico do chat
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if isinstance(message["content"], pd.DataFrame):
@@ -367,61 +383,79 @@ for message in st.session_state.messages:
         else:
             st.markdown(message["content"], unsafe_allow_html=True)
 
-if prompt := st.chat_input("Como posso ajudar?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+def proximo_campo():
+    """Determina qual o próximo campo a ser solicitado."""
+    entidade = st.session_state.conversa_em_andamento
+    if not entidade: return None
+    campos_necessarios = CAMPOS_CADASTRO[entidade]
+    for campo in campos_necessarios:
+        if campo not in st.session_state.dados_recolhidos:
+            return campo
+    return None
 
-    with st.chat_message("assistant"):
-        with st.spinner("A pensar..."):
+def adicionar_mensagem(role, content):
+    """Adiciona uma mensagem ao histórico e à tela."""
+    st.session_state.messages.append({"role": role, "content": content})
+    with st.chat_message(role):
+        if isinstance(content, pd.DataFrame):
+            st.dataframe(content, hide_index=True, use_container_width=True)
+        else:
+            st.markdown(content, unsafe_allow_html=True)
+
+if prompt := st.chat_input("Como posso ajudar?"):
+    adicionar_mensagem("user", prompt)
+
+    with st.spinner("A pensar..."):
+        # Se já estivermos num fluxo de cadastro, o prompt é o valor do campo
+        if st.session_state.conversa_em_andamento:
+            campo_atual = proximo_campo()
+            st.session_state.dados_recolhidos[campo_atual] = prompt
+            
+            proximo = proximo_campo()
+            if proximo:
+                adicionar_mensagem("assistant", f"Entendido. Agora, qual é o **{proximo.replace('_', ' ')}**?")
+            else: # Todos os campos foram recolhidos
+                resumo = f"Perfeito! Recolhi todas as informações. Por favor, confirme os dados para criar o **{st.session_state.conversa_em_andamento}**:\n"
+                for key, value in st.session_state.dados_recolhidos.items():
+                    resumo += f"- **{key.replace('_', ' ').title()}:** {value}\n"
+                adicionar_mensagem("assistant", resumo)
+                st.session_state.pending_action = {
+                    "acao": f"criar_{st.session_state.conversa_em_andamento}",
+                    "dados": st.session_state.dados_recolhidos
+                }
+                st.session_state.conversa_em_andamento = None
+                st.session_state.dados_recolhidos = {}
+        
+        # Se não houver conversa em andamento, interpreta o comando inicial
+        else:
             if prompt.strip().lower() == '#info':
                 response_data = {"acao": "ajuda"}
             else:
                 response_data = asyncio.run(get_flow_response(prompt, st.session_state['user_name']))
             
             acao = response_data.get('acao')
-            dados = response_data.get('dados')
             
-            if acao in ['criar_colaborador', 'criar_aparelho', 'criar_conta_gmail']:
-                if (acao == 'criar_colaborador' and not (dados and dados.get('nome_completo') and dados.get('codigo'))) or \
-                   (acao == 'criar_aparelho' and not (dados and all(k in dados for k in ['marca', 'modelo', 'numero_serie', 'valor']))) or \
-                   (acao == 'criar_conta_gmail' and not (dados and dados.get('email'))):
-                    if acao == 'criar_colaborador':
-                        response_content = "Entendido. Para adicionar um novo colaborador, por favor, informe os seguintes dados: **Código**, **Nome Completo**, **CPF**, **Gmail** (opcional) e **Setor**."
-                    elif acao == 'criar_aparelho':
-                        response_content = "Entendido. Para adicionar um novo aparelho, por favor, informe: **Marca**, **Modelo**, **Número de Série**, **Valor** e **IMEIs** (opcional)."
-                    else:
-                        response_content = "Entendido. Para adicionar uma nova conta Gmail, informe: **Email**, **Senha**, **Telefone de Recuperação** (opcional), **Email de Recuperação** (opcional), **Setor** e **Colaborador** (opcional)."
-                    st.markdown(response_content)
-                    st.session_state.messages.append({"role": "assistant", "content": response_content})
+            if acao == 'iniciar_criacao':
+                entidade = response_data.get('entidade')
+                if entidade in CAMPOS_CADASTRO:
+                    st.session_state.conversa_em_andamento = entidade
+                    st.session_state.dados_recolhidos = {}
+                    primeiro_campo = proximo_campo()
+                    adicionar_mensagem("assistant", f"Ótimo! Para criar um novo **{entidade}**, vamos começar. Qual é o **{primeiro_campo.replace('_', ' ')}**?")
                 else:
-                    st.session_state.pending_action = {"acao": acao, "dados": dados}
-                    entidade = "colaborador" if acao == 'criar_colaborador' else ('aparelho' if acao == 'criar_aparelho' else 'conta Gmail')
-                    nome_entidade = dados.get('nome_completo') or f"{dados.get('marca')} {dados.get('modelo')}" or dados.get('email')
-                    response_content = f"A registar a {entidade} **{nome_entidade}**. Confirma as informações?"
-                    st.markdown(response_content)
-                    st.session_state.messages.append({"role": "assistant", "content": response_content})
-
+                    adicionar_mensagem("assistant", "Desculpe, não sei como criar essa entidade.")
+            
             elif acao in ['pesquisar_aparelho', 'pesquisar_movimentacoes']:
                 executor = executar_pesquisa_aparelho if acao == 'pesquisar_aparelho' else executar_pesquisa_movimentacoes
                 resultados = executor(response_data.get('filtros'))
                 if isinstance(resultados, pd.DataFrame) and not resultados.empty:
-                    response_content = f"Encontrei {len(resultados)} resultado(s) com esses critérios:"
-                    st.markdown(response_content)
-                    st.dataframe(resultados, hide_index=True, use_container_width=True)
-                    st.session_state.messages.append({"role": "assistant", "content": resultados})
-                elif isinstance(resultados, pd.DataFrame) and resultados.empty:
-                    response_content = "Não encontrei nenhum resultado com esses critérios."
-                    st.markdown(response_content)
-                    st.session_state.messages.append({"role": "assistant", "content": response_content})
+                    adicionar_mensagem("assistant", f"Encontrei {len(resultados)} resultado(s):")
+                    adicionar_mensagem("assistant", resultados)
                 else:
-                    st.markdown(resultados)
-                    st.session_state.messages.append({"role": "assistant", "content": resultados})
+                    adicionar_mensagem("assistant", "Não encontrei nenhum resultado com esses critérios.")
 
             elif acao == 'ajuda':
-                response_content = get_info_text()
-                st.markdown(response_content, unsafe_allow_html=True)
-                st.session_state.messages.append({"role": "assistant", "content": response_content})
+                adicionar_mensagem("assistant", get_info_text())
 
             elif acao == 'limpar_chat':
                 st.session_state.messages = [{"role": "assistant", "content": "Chat limpo! Como posso ajudar a recomeçar?"}]
@@ -429,22 +463,15 @@ if prompt := st.chat_input("Como posso ajudar?"):
                 st.rerun()
 
             elif acao == 'logout':
-                st.info("A encerrar a sessão...")
+                adicionar_mensagem("assistant", "A encerrar a sessão...")
                 logout()
 
             elif acao == 'saudacao':
-                response_content = f"Olá {st.session_state['user_name']}! Sou o Flow. Diga `#info` para ver o que posso fazer."
-                st.markdown(response_content)
-                st.session_state.messages.append({"role": "assistant", "content": response_content})
+                adicionar_mensagem("assistant", f"Olá {st.session_state['user_name']}! Sou o Flow. Diga `#info` para ver o que posso fazer.")
 
-            else:
-                erro = response_data.get("dados", {}).get("erro")
-                if erro:
-                    response_content = f"Ocorreu um erro: {erro}"
-                else:
-                    response_content = "Desculpe, não consegui entender o seu pedido. Pode tentar reformular? Diga `#info` para ver exemplos."
-                st.markdown(response_content)
-                st.session_state.messages.append({"role": "assistant", "content": response_content})
+            else: # Ação desconhecida ou erro
+                erro = response_data.get("dados", {}).get("erro", "Não consegui entender o seu pedido. Pode tentar reformular? Diga `#info` para ver exemplos.")
+                adicionar_mensagem("assistant", f"Desculpe, ocorreu um problema: {erro}")
 
 # --- Botões de Confirmação ---
 if st.session_state.pending_action:
@@ -459,15 +486,13 @@ if st.session_state.pending_action:
                 resultado = executar_criar_aparelho(action_data["dados"])
             elif action_data["acao"] == "criar_conta_gmail":
                 resultado = executar_criar_conta_gmail(action_data["dados"])
-            
-            st.success(resultado)
-            st.session_state.messages.append({"role": "assistant", "content": f"✅ **Sucesso:** {resultado}"})
+
+            adicionar_mensagem("assistant", f"✅ **Sucesso:** {resultado}")
             st.session_state.pending_action = None
             st.rerun()
 
     with col2:
         if st.button("Não, cancelar"):
-            st.warning("Ação cancelada.")
-            st.session_state.messages.append({"role": "assistant", "content": "Ação cancelada pelo utilizador."})
+            adicionar_mensagem("assistant", "Ação cancelada pelo utilizador.")
             st.session_state.pending_action = None
             st.rerun()
