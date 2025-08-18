@@ -16,18 +16,15 @@ st.set_page_config(page_title="Converse com o Flow", layout="wide")
 # --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
-    /* Estilos da Logo */
+    /* Estilos da Logo Principal */
     .logo-text {
         font-family: 'Courier New', monospace;
         font-size: 28px;
         font-weight: bold;
         padding-top: 20px;
     }
-    /* Cor para o tema claro (padrão) */
     .logo-asset { color: #003366; }
     .logo-flow { color: #E30613; }
-
-    /* Cor para o tema escuro (usando media query) */
     @media (prefers-color-scheme: dark) {
         .logo-asset { color: #FFFFFF; }
         .logo-flow { color: #FF4B4B; }
@@ -39,27 +36,40 @@ st.markdown("""
         padding-top: 20px;
         padding-bottom: 20px;
     }
-    .sidebar-footer a {
-        margin-right: 15px;
-        text-decoration: none;
-    }
+    .sidebar-footer a { margin-right: 15px; text-decoration: none; }
     .sidebar-footer img {
-        width: 25px;
-        height: 25px;
-        filter: grayscale(1) opacity(0.5);
+        width: 25px; height: 25px; filter: grayscale(1) opacity(0.5);
         transition: filter 0.3s;
     }
-    .sidebar-footer img:hover {
-        filter: grayscale(0) opacity(1);
-    }
-    
+    .sidebar-footer img:hover { filter: grayscale(0) opacity(1); }
     @media (prefers-color-scheme: dark) {
-        .sidebar-footer img {
-            filter: grayscale(1) opacity(0.6) invert(1);
-        }
-        .sidebar-footer img:hover {
-            filter: opacity(1) invert(1);
-        }
+        .sidebar-footer img { filter: grayscale(1) opacity(0.6) invert(1); }
+        .sidebar-footer img:hover { filter: opacity(1) invert(1); }
+    }
+
+    /* --- NOVO: Estilos para a Logo do Chat --- */
+    .flow-title {
+        display: flex;
+        align-items: center;
+        padding-bottom: 10px;
+    }
+    .flow-title .icon {
+        font-size: 2.5em;
+        margin-right: 15px;
+    }
+    .flow-title h1 {
+        font-family: 'Courier New', monospace;
+        font-size: 3em;
+        font-weight: bold;
+        margin: 0;
+        padding: 0;
+        line-height: 1;
+    }
+    .flow-title .text-chat { color: #003366; }
+    .flow-title .text-flow { color: #E30613; }
+    @media (prefers-color-scheme: dark) {
+        .flow-title .text-chat { color: #FFFFFF; }
+        .flow-title .text-flow { color: #FF4B4B; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -361,7 +371,15 @@ CAMPOS_CADASTRO = {
 }
 
 # --- Interface do Chatbot ---
-st.title("💬 Converse com o Flow")
+st.markdown(
+    """
+    <div class="flow-title">
+        <span class="icon">💬</span>
+        <h1><span class="text-chat">Converse com o </span><span class="text-flow">Flow</span></h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 st.markdown("---")
 st.info("Sou o Flow, seu assistente inteligente. Diga `#info` para ver os comandos, `limpar chat` para recomeçar ou `encerrar chat` para sair.")
 
@@ -374,6 +392,8 @@ if "conversa_em_andamento" not in st.session_state:
     st.session_state.conversa_em_andamento = None
 if "dados_recolhidos" not in st.session_state:
     st.session_state.dados_recolhidos = {}
+if "campo_para_corrigir" not in st.session_state:
+    st.session_state.campo_para_corrigir = None
 
 # Exibe o histórico do chat
 for message in st.session_state.messages:
@@ -402,12 +422,34 @@ def adicionar_mensagem(role, content):
         else:
             st.markdown(content, unsafe_allow_html=True)
 
+def apresentar_resumo():
+    """Apresenta o resumo dos dados recolhidos para confirmação."""
+    resumo = f"Perfeito! Recolhi as informações. Por favor, confirme os dados para criar o **{st.session_state.conversa_em_andamento}**:\n"
+    for key, value in st.session_state.dados_recolhidos.items():
+        resumo += f"- **{key.replace('_', ' ').title()}:** {value}\n"
+    adicionar_mensagem("assistant", resumo)
+    st.session_state.pending_action = {
+        "acao": f"criar_{st.session_state.conversa_em_andamento}",
+        "dados": st.session_state.dados_recolhidos
+    }
+    st.session_state.conversa_em_andamento = None
+    st.session_state.campo_para_corrigir = None
+
+
 if prompt := st.chat_input("Como posso ajudar?"):
     adicionar_mensagem("user", prompt)
 
     with st.spinner("A pensar..."):
-        # Se já estivermos num fluxo de cadastro, o prompt é o valor do campo
-        if st.session_state.conversa_em_andamento:
+        # Se estivermos a corrigir um campo
+        if st.session_state.campo_para_corrigir:
+            campo = st.session_state.campo_para_corrigir
+            st.session_state.dados_recolhidos[campo] = prompt
+            st.session_state.campo_para_corrigir = None
+            apresentar_resumo()
+            st.rerun()
+
+        # Se estivermos num fluxo de cadastro
+        elif st.session_state.conversa_em_andamento:
             campo_atual = proximo_campo()
             st.session_state.dados_recolhidos[campo_atual] = prompt
             
@@ -415,16 +457,8 @@ if prompt := st.chat_input("Como posso ajudar?"):
             if proximo:
                 adicionar_mensagem("assistant", f"Entendido. Agora, qual é o **{proximo.replace('_', ' ')}**?")
             else: # Todos os campos foram recolhidos
-                resumo = f"Perfeito! Recolhi todas as informações. Por favor, confirme os dados para criar o **{st.session_state.conversa_em_andamento}**:\n"
-                for key, value in st.session_state.dados_recolhidos.items():
-                    resumo += f"- **{key.replace('_', ' ').title()}:** {value}\n"
-                adicionar_mensagem("assistant", resumo)
-                st.session_state.pending_action = {
-                    "acao": f"criar_{st.session_state.conversa_em_andamento}",
-                    "dados": st.session_state.dados_recolhidos
-                }
-                st.session_state.conversa_em_andamento = None
-                st.session_state.dados_recolhidos = {}
+                apresentar_resumo()
+                st.rerun()
         
         # Se não houver conversa em andamento, interpreta o comando inicial
         else:
@@ -476,18 +510,28 @@ if prompt := st.chat_input("Como posso ajudar?"):
 # --- Botões de Confirmação ---
 if st.session_state.pending_action:
     action_data = st.session_state.pending_action
+    
     col1, col2, col3 = st.columns([1, 1, 5])
+    
     with col1:
         if st.button("Sim, confirmo", type="primary"):
             resultado = ""
-            if action_data["acao"] == "criar_colaborador":
-                resultado = executar_criar_colaborador(action_data["dados"])
-            elif action_data["acao"] == "criar_aparelho":
-                resultado = executar_criar_aparelho(action_data["dados"])
-            elif action_data["acao"] == "criar_conta_gmail":
-                resultado = executar_criar_conta_gmail(action_data["dados"])
+            acao_executar = action_data["acao"]
+            dados_executar = action_data["dados"]
+            
+            if acao_executar == "criar_colaborador":
+                resultado = executar_criar_colaborador(dados_executar)
+            elif acao_executar == "criar_aparelho":
+                resultado = executar_criar_aparelho(dados_executar)
+            elif acao_executar == "criar_conta_gmail":
+                resultado = executar_criar_conta_gmail(dados_executar)
 
-            adicionar_mensagem("assistant", f"✅ **Sucesso:** {resultado}")
+            # Lógica de Sucesso/Erro
+            if "Erro:" in resultado:
+                adicionar_mensagem("assistant", f"❌ **Falha:** {resultado}")
+            else:
+                adicionar_mensagem("assistant", f"✅ **Sucesso:** {resultado}")
+
             st.session_state.pending_action = None
             st.rerun()
 
@@ -495,4 +539,15 @@ if st.session_state.pending_action:
         if st.button("Não, cancelar"):
             adicionar_mensagem("assistant", "Ação cancelada pelo utilizador.")
             st.session_state.pending_action = None
+            st.rerun()
+
+    with col3:
+        if st.button("Corrigir uma informação"):
+            st.session_state.campo_para_corrigir = st.selectbox(
+                "Qual campo deseja corrigir?",
+                options=action_data["dados"].keys(),
+                key="campo_correcao"
+            )
+            adicionar_mensagem("assistant", f"Entendido. Por favor, insira o novo valor para **{st.session_state.campo_para_corrigir}**.")
+            st.session_state.pending_action = None # Limpa a ação de confirmação para esperar o novo dado
             st.rerun()
