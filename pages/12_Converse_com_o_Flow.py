@@ -3,6 +3,8 @@ import sqlite3
 import json
 import pandas as pd
 from auth import show_login_form
+import asyncio
+import httpx
 
 # --- Autenticação e Configuração da Página ---
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
@@ -165,9 +167,51 @@ schema = {
 
 async def get_flow_response(prompt):
     """Envia o prompt para a API Gemini e retorna a resposta estruturada."""
-    # ... (código da função de chamada à API omitido para brevidade) ...
-    # Esta função deve ser implementada com a sua chave de API
-    return {"acao": "desconhecido", "dados": {"erro": "Função de API não implementada neste exemplo."}}
+    chatHistory = [
+        {
+            "role": "user",
+            "parts": [{"text": "Você é o Flow, um assistente para um sistema de gestão de ativos. Sua função é interpretar os pedidos do utilizador e traduzi-los para um formato JSON estruturado, de acordo com o schema fornecido. Seja conciso e direto."}]
+        },
+        {
+            "role": "model",
+            "parts": [{"text": "Entendido. Estou pronto para processar os pedidos e retornar o JSON correspondente."}]
+        },
+        {"role": "user", "parts": [{"text": prompt}]}
+    ]
+    
+    payload = {
+        "contents": chatHistory,
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": schema
+        }
+    }
+    
+    try:
+        apiKey = st.secrets["GEMINI_API_KEY"]
+    except KeyError:
+        return {"acao": "desconhecido", "dados": {"erro": "Chave de API não encontrada. Por favor, configure o segredo 'GEMINI_API_KEY'."}}
+
+    apiUrl = f"https://generativelace.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={apiKey}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                apiUrl,
+                headers={'Content-Type': 'application/json'},
+                json=payload,
+                timeout=30
+            )
+        response.raise_for_status()
+        result = response.json()
+        
+        if result.get('candidates'):
+            json_text = result['candidates'][0]['content']['parts'][0]['text']
+            return json.loads(json_text)
+        else:
+            return {"acao": "desconhecido", "dados": {"erro": f"Não consegui entender o pedido. Resposta da API: {result}"}}
+    except Exception as e:
+        return {"acao": "desconhecido", "dados": {"erro": f"Ocorreu um erro de comunicação: {e}"}}
 
 # --- Interface do Chatbot ---
 st.title("💬 Converse com o Flow")
@@ -191,14 +235,7 @@ if prompt := st.chat_input("Como posso ajudar?"):
 
     with st.chat_message("assistant"):
         with st.spinner("A pensar..."):
-            import asyncio
-            # Simulação da resposta da IA para testes
-            if "cauã" in prompt.lower():
-                 response_data = {"acao": "pesquisar_aparelho", "filtros": {"nome_colaborador": "Cauã"}}
-            elif "olá" in prompt.lower() or "oi" in prompt.lower():
-                 response_data = {"acao": "saudacao"}
-            else:
-                 response_data = {"acao": "desconhecido"}
+            response_data = asyncio.run(get_flow_response(prompt))
 
             # --- O EXECUTOR DE AÇÕES ---
             acao = response_data.get('acao')
@@ -209,21 +246,26 @@ if prompt := st.chat_input("Como posso ajudar?"):
                     response_content = f"Encontrei {len(resultados)} aparelho(s) com esses critérios:"
                     st.markdown(response_content)
                     st.dataframe(resultados, hide_index=True, use_container_width=True)
+                    # Guarda a tabela nos logs do chat para ser re-exibida
                     st.session_state.messages.append({"role": "assistant", "content": resultados})
                 elif isinstance(resultados, pd.DataFrame) and resultados.empty:
                     response_content = "Não encontrei nenhum aparelho com esses critérios."
                     st.markdown(response_content)
                     st.session_state.messages.append({"role": "assistant", "content": response_content})
-                else:
+                else: # Caso a função retorne uma string de erro
                     st.markdown(resultados)
                     st.session_state.messages.append({"role": "assistant", "content": resultados})
 
             elif acao == 'saudacao':
-                response_content = "Olá! Sou o Flow, o seu assistente. Pode pedir-me para pesquisar aparelhos por colaborador ou número de série."
+                response_content = "Olá! Sou o Flow. Pode pedir-me para pesquisar aparelhos por colaborador ou número de série."
                 st.markdown(response_content)
                 st.session_state.messages.append({"role": "assistant", "content": response_content})
 
-            else: # Ação desconhecida
-                response_content = "Desculpe, não consegui entender o seu pedido. Pode tentar reformular? Por exemplo: 'Encontre os aparelhos do Cauã Freitas'."
+            else: # Ação desconhecida ou erro da API
+                erro = response_data.get("dados", {}).get("erro")
+                if erro:
+                    response_content = f"Ocorreu um erro: {erro}"
+                else:
+                    response_content = "Desculpe, não consegui entender o seu pedido. Pode tentar reformular? Por exemplo: 'Encontre os aparelhos do Cauã Freitas'."
                 st.markdown(response_content)
                 st.session_state.messages.append({"role": "assistant", "content": response_content})
