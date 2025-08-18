@@ -426,7 +426,12 @@ def adicionar_mensagem(role, content):
 
 def apresentar_resumo():
     """Apresenta o resumo dos dados recolhidos para confirmação."""
-    entidade = st.session_state.conversa_em_andamento or st.session_state.pending_action['acao'].split('_')[1]
+    # CORREÇÃO: Lógica mais robusta para encontrar a entidade
+    entidade = st.session_state.get('conversa_em_andamento') or st.session_state.get('entidade_em_correcao')
+    if not entidade:
+        adicionar_mensagem("assistant", "Ocorreu um erro interno ao tentar apresentar o resumo.")
+        return
+
     dados = st.session_state.dados_recolhidos
     resumo = f"Perfeito! Recolhi as informações. Por favor, confirme os dados para criar o **{entidade}**:\n"
     for key, value in dados.items():
@@ -438,6 +443,7 @@ def apresentar_resumo():
     }
     st.session_state.conversa_em_andamento = None
     st.session_state.campo_para_corrigir = None
+    st.session_state.entidade_em_correcao = None # Limpa o estado de correção
 
 
 if prompt := st.chat_input("Como posso ajudar?"):
@@ -547,6 +553,8 @@ if st.session_state.pending_action:
 
     with col3:
         if st.button("Corrigir uma informação"):
+            # CORREÇÃO: Guarda a entidade e os dados para o modo de correção
+            st.session_state.entidade_em_correcao = action_data['acao'].split('_')[1]
             st.session_state.dados_para_corrigir = action_data["dados"]
             st.session_state.modo_correcao = True
             st.session_state.pending_action = None
