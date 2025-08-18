@@ -152,7 +152,6 @@ def executar_criar_colaborador(dados):
     
     conn = get_db_connection()
     try:
-        # Busca o ID do setor
         setor_id = None
         if dados.get('nome_setor'):
             setor = conn.execute("SELECT id FROM setores WHERE nome_setor LIKE ?", (f"%{dados['nome_setor']}%",)).fetchone()
@@ -179,7 +178,6 @@ def executar_criar_aparelho(dados):
     
     conn = get_db_connection()
     try:
-        # Encontra o ID da marca e do modelo
         modelo_completo = f"{dados['marca']} - {dados['modelo']}"
         modelo_id_row = conn.execute("SELECT mo.id FROM modelos mo JOIN marcas ma ON mo.marca_id = ma.id WHERE (ma.nome_marca || ' - ' || mo.nome_modelo) = ?", (modelo_completo,)).fetchone()
         if not modelo_id_row:
@@ -188,7 +186,6 @@ def executar_criar_aparelho(dados):
         modelo_id = modelo_id_row[0]
         status_id = conn.execute("SELECT id FROM status WHERE nome_status = 'Em estoque'").fetchone()[0]
 
-        # Adiciona o aparelho e o histórico
         cursor = conn.cursor()
         cursor.execute("BEGIN TRANSACTION;")
         cursor.execute(
@@ -211,15 +208,50 @@ def executar_criar_aparelho(dados):
     finally:
         conn.close()
 
+def executar_pesquisa_movimentacoes(filtros):
+    """Executa uma pesquisa no histórico de movimentações."""
+    if not filtros:
+        return "Por favor, forneça um critério de pesquisa (colaborador, N/S ou data)."
+
+    conn = get_db_connection()
+    query = """
+        SELECT h.data_movimentacao, a.numero_serie, mo.nome_modelo, c.nome_completo as colaborador, s.nome_status, h.observacoes
+        FROM historico_movimentacoes h
+        JOIN aparelhos a ON h.aparelho_id = a.id
+        JOIN status s ON h.status_id = s.id
+        LEFT JOIN colaboradores c ON h.colaborador_id = c.id
+        LEFT JOIN modelos mo ON a.modelo_id = mo.id
+    """
+    params = []
+    where_clauses = []
+
+    if filtros.get("nome_colaborador"):
+        where_clauses.append("c.nome_completo LIKE ?")
+        params.append(f"%{filtros['nome_colaborador']}%")
+    if filtros.get("numero_serie"):
+        where_clauses.append("a.numero_serie LIKE ?")
+        params.append(f"%{filtros['numero_serie']}%")
+    if filtros.get("data"):
+        where_clauses.append("date(h.data_movimentacao) = ?")
+        params.append(filtros['data'])
+
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+    
+    query += " ORDER BY h.data_movimentacao DESC"
+    
+    df = pd.read_sql_query(query, conn, params=params)
+    conn.close()
+    return df
+
 # --- Lógica do Chatbot ---
 
-# Schema expandido para a v3.0
 schema = {
     "type": "OBJECT",
     "properties": {
         "acao": {
             "type": "STRING",
-            "enum": ["criar_colaborador", "criar_aparelho", "pesquisar_aparelho", "limpar_chat", "logout", "saudacao", "desconhecido"]
+            "enum": ["criar_colaborador", "criar_aparelho", "pesquisar_aparelho", "pesquisar_movimentacoes", "limpar_chat", "logout", "saudacao", "desconhecido"]
         },
         "dados": {
             "type": "OBJECT",
@@ -231,36 +263,29 @@ schema = {
                 "imei2": {"type": "STRING"}, "valor": {"type": "NUMBER"}
             }
         },
-        "filtros": { "type": "OBJECT", "properties": { "nome_colaborador": {"type": "STRING"}, "numero_serie": {"type": "STRING"} } }
+        "filtros": { "type": "OBJECT", "properties": { "nome_colaborador": {"type": "STRING"}, "numero_serie": {"type": "STRING"}, "data": {"type": "STRING", "description": "Data no formato YYYY-MM-DD"} } }
     },
     "required": ["acao"]
 }
 
 async def get_flow_response(prompt, user_name):
-    """Envia o prompt para a API Gemini e retorna a resposta estruturada."""
     contextual_prompt = f"O utilizador '{user_name}' pediu: {prompt}"
-    
     chatHistory = [
         {"role": "user", "parts": [{"text": "Você é o Flow, um assistente para um sistema de gestão de ativos. Sua função é interpretar os pedidos do utilizador e traduzi-los para um formato JSON estruturado, de acordo com o schema fornecido. Seja conciso e direto."}]},
         {"role": "model", "parts": [{"text": "Entendido. Estou pronto para processar os pedidos e retornar o JSON correspondente."}]},
         {"role": "user", "parts": [{"text": contextual_prompt}]}
     ]
-    
     payload = { "contents": chatHistory, "generationConfig": { "responseMimeType": "application/json", "responseSchema": schema } }
-    
     try:
         apiKey = st.secrets["GEMINI_API_KEY"]
     except KeyError:
         return {"acao": "desconhecido", "dados": {"erro": "Chave de API não configurada."}}
-
     apiUrl = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={apiKey}"
-    
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(apiUrl, headers={'Content-Type': 'application/json'}, json=payload, timeout=30)
         response.raise_for_status()
         result = response.json()
-        
         if result.get('candidates'):
             json_text = result['candidates'][0]['content']['parts'][0]['text']
             return json.loads(json_text)
@@ -269,13 +294,35 @@ async def get_flow_response(prompt, user_name):
     except Exception as e:
         return {"acao": "desconhecido", "dados": {"erro": f"Ocorreu um erro de comunicação: {e}"}}
 
+def get_info_text():
+    return """
+    Olá! Sou o Flow, o seu assistente. Veja como me pode usar:
+
+    **1. Para Pesquisar:**
+    - **Aparelhos:** Diga "pesquisar aparelho do [nome do colaborador]" ou "encontrar aparelho com n/s [número de série]".
+    - **Movimentações:** Diga "mostrar histórico do [nome do colaborador]", "ver movimentações do aparelho [número de série]" ou "o que aconteceu em [data no formato AAAA-MM-DD]?".
+
+    **2. Para Criar Novos Registos:**
+    - **Colaborador:** Comece por dizer "criar colaborador". Eu irei guiá-lo sobre os dados necessários.
+      - *Exemplo de dados:* `código 123, nome João Silva, cpf 11122233344, setor TI`
+    - **Aparelho:** Comece por dizer "criar aparelho". Eu irei guiá-lo sobre os dados necessários.
+      - *Exemplo de dados:* `marca Samsung, modelo S24, n/s ABC123XYZ, valor 5500`
+
+    **3. Comandos do Chat:**
+    - **`#info`:** Mostra esta mensagem de ajuda.
+    - **`limpar chat`:** Apaga o histórico da nossa conversa.
+    - **`encerrar chat` ou `logout`:** Faz o logout do sistema.
+
+    Estou aqui para ajudar a tornar a sua gestão mais rápida e fácil!
+    """
+
 # --- Interface do Chatbot ---
 st.title("💬 Converse com o Flow")
 st.markdown("---")
-st.info("Sou o Flow, seu assistente inteligente. Diga 'limpar chat' para recomeçar ou 'encerrar chat' para sair.")
+st.info("Sou o Flow, seu assistente inteligente. Diga `#info` para ver os comandos, `limpar chat` para recomeçar ou `encerrar chat` para sair.")
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": f"Olá {st.session_state['user_name']}! Como posso ajudar a gerir os seus ativos hoje?"}]
+    st.session_state.messages = [{"role": "assistant", "content": f"Olá {st.session_state['user_name']}! Como posso ajudar a gerir os seus ativos hoje? Diga `#info` para ver o que posso fazer."}]
 if "pending_action" not in st.session_state:
     st.session_state.pending_action = None
 
@@ -284,7 +331,7 @@ for message in st.session_state.messages:
         if isinstance(message["content"], pd.DataFrame):
             st.dataframe(message["content"], hide_index=True, use_container_width=True)
         else:
-            st.markdown(message["content"])
+            st.markdown(message["content"], unsafe_allow_html=True)
 
 if prompt := st.chat_input("Como posso ajudar?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -293,35 +340,55 @@ if prompt := st.chat_input("Como posso ajudar?"):
 
     with st.chat_message("assistant"):
         with st.spinner("A pensar..."):
-            response_data = asyncio.run(get_flow_response(prompt, st.session_state['user_name']))
+            if prompt.strip().lower() == '#info':
+                response_data = {"acao": "ajuda"}
+            else:
+                response_data = asyncio.run(get_flow_response(prompt, st.session_state['user_name']))
+            
             acao = response_data.get('acao')
+            dados = response_data.get('dados')
             
             if acao in ['criar_colaborador', 'criar_aparelho']:
-                dados = response_data.get('dados')
-                st.session_state.pending_action = {"acao": acao, "dados": dados}
-                entidade = "colaborador" if acao == 'criar_colaborador' else 'aparelho'
-                nome_entidade = dados.get('nome_completo') if entidade == 'colaborador' else f"{dados.get('marca')} {dados.get('modelo')}"
-                response_content = f"Entendi que deseja criar o {entidade} **{nome_entidade}**. Confirma as informações?"
-                st.markdown(response_content)
-                st.session_state.messages.append({"role": "assistant", "content": response_content})
+                if (acao == 'criar_colaborador' and not (dados and dados.get('nome_completo') and dados.get('codigo'))) or \
+                   (acao == 'criar_aparelho' and not (dados and all(k in dados for k in ['marca', 'modelo', 'numero_serie', 'valor']))):
+                    if acao == 'criar_colaborador':
+                        response_content = "Entendido. Para adicionar um novo colaborador, por favor, informe os seguintes dados: **Código**, **Nome Completo**, **CPF**, **Gmail** (opcional) e **Setor**."
+                    else:
+                        response_content = "Entendido. Para adicionar um novo aparelho, por favor, informe: **Marca**, **Modelo**, **Número de Série**, **Valor** e **IMEIs** (opcional)."
+                    st.markdown(response_content)
+                    st.session_state.messages.append({"role": "assistant", "content": response_content})
+                else:
+                    st.session_state.pending_action = {"acao": acao, "dados": dados}
+                    entidade = "colaborador" if acao == 'criar_colaborador' else 'aparelho'
+                    nome_entidade = dados.get('nome_completo') if entidade == 'colaborador' else f"{dados.get('marca')} {dados.get('modelo')}"
+                    response_content = f"A registar o {entidade} **{nome_entidade}**. Confirma as informações?"
+                    st.markdown(response_content)
+                    st.session_state.messages.append({"role": "assistant", "content": response_content})
 
-            elif acao == 'pesquisar_aparelho':
-                resultados = executar_pesquisa_aparelho(response_data.get('filtros'))
+            elif acao in ['pesquisar_aparelho', 'pesquisar_movimentacoes']:
+                executor = executar_pesquisa_aparelho if acao == 'pesquisar_aparelho' else executar_pesquisa_movimentacoes
+                resultados = executor(response_data.get('filtros'))
                 if isinstance(resultados, pd.DataFrame) and not resultados.empty:
-                    response_content = f"Encontrei {len(resultados)} aparelho(s) com esses critérios:"
+                    response_content = f"Encontrei {len(resultados)} resultado(s) com esses critérios:"
                     st.markdown(response_content)
                     st.dataframe(resultados, hide_index=True, use_container_width=True)
                     st.session_state.messages.append({"role": "assistant", "content": resultados})
                 elif isinstance(resultados, pd.DataFrame) and resultados.empty:
-                    response_content = "Não encontrei nenhum aparelho com esses critérios."
+                    response_content = "Não encontrei nenhum resultado com esses critérios."
                     st.markdown(response_content)
                     st.session_state.messages.append({"role": "assistant", "content": response_content})
                 else:
                     st.markdown(resultados)
                     st.session_state.messages.append({"role": "assistant", "content": resultados})
 
+            elif acao == 'ajuda':
+                response_content = get_info_text()
+                st.markdown(response_content, unsafe_allow_html=True)
+                st.session_state.messages.append({"role": "assistant", "content": response_content})
+
             elif acao == 'limpar_chat':
                 st.session_state.messages = [{"role": "assistant", "content": "Chat limpo! Como posso ajudar a recomeçar?"}]
+                st.session_state.pending_action = None
                 st.rerun()
 
             elif acao == 'logout':
@@ -329,7 +396,7 @@ if prompt := st.chat_input("Como posso ajudar?"):
                 logout()
 
             elif acao == 'saudacao':
-                response_content = f"Olá {st.session_state['user_name']}! Sou o Flow. Pode pedir-me para criar ou pesquisar colaboradores e aparelhos."
+                response_content = f"Olá {st.session_state['user_name']}! Sou o Flow. Diga `#info` para ver o que posso fazer."
                 st.markdown(response_content)
                 st.session_state.messages.append({"role": "assistant", "content": response_content})
 
@@ -338,7 +405,7 @@ if prompt := st.chat_input("Como posso ajudar?"):
                 if erro:
                     response_content = f"Ocorreu um erro: {erro}"
                 else:
-                    response_content = "Desculpe, não consegui entender o seu pedido. Pode tentar reformular? Por exemplo: 'Encontre os aparelhos do Cauã Freitas' ou 'Crie o colaborador João Silva, código 123'."
+                    response_content = "Desculpe, não consegui entender o seu pedido. Pode tentar reformular? Diga `#info` para ver exemplos."
                 st.markdown(response_content)
                 st.session_state.messages.append({"role": "assistant", "content": response_content})
 
