@@ -192,7 +192,8 @@ async def get_flow_response(prompt):
     except KeyError:
         return {"acao": "desconhecido", "dados": {"erro": "Chave de API não encontrada. Por favor, configure o segredo 'GEMINI_API_KEY'."}}
 
-    apiUrl = f"https://generativelace.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={apiKey}"
+    # CORREÇÃO: O endereço da API estava com um erro de digitação.
+    apiUrl = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={apiKey}"
     
     try:
         async with httpx.AsyncClient() as client:
