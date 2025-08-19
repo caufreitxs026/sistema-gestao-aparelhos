@@ -140,7 +140,7 @@ else:
         """, conn)
 
         # Painel de Ação Rápida
-        data_limite = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+        data_limite = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
         df_manut_atrasadas = pd.read_sql_query(f"""
             SELECT a.numero_serie, mo.nome_modelo, m.fornecedor, m.data_envio
             FROM manutencoes m
@@ -176,7 +176,7 @@ else:
     with col_titulo:
         st.title("Dashboard Gerencial")
     with col_botao:
-        if st.button("Atualizar Dados"):
+        if st.button("🔄 Atualizar Dados"):
             carregar_dados_dashboard.clear()
             st.rerun()
 
@@ -226,10 +226,8 @@ else:
     st.subheader("Painel de Ação Rápida")
     acol1, acol2 = st.columns(2)
     with acol1:
-        st.markdown("###### Alerta: Manutenções Atrasadas (> 5 dias)")
+        st.markdown("###### Alerta: Manutenções Atrasadas (> 30 dias)")
         st.dataframe(acao_rapida['manut_atrasadas'], hide_index=True, use_container_width=True)
     with acol2:
         st.markdown("###### Últimas 5 Movimentações")
         st.dataframe(acao_rapida['ultimas_mov'], hide_index=True, use_container_width=True)
-
-
