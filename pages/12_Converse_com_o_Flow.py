@@ -343,6 +343,7 @@ def adicionar_mensagem(role, content):
             st.markdown(content, unsafe_allow_html=True)
 
 def apresentar_resumo():
+    # CORREÇÃO: Lógica mais robusta para encontrar a entidade
     entidade = st.session_state.get('conversa_em_andamento') or st.session_state.get('entidade_em_correcao')
     if not entidade:
         adicionar_mensagem("assistant", "Ocorreu um erro interno ao tentar apresentar o resumo.")
@@ -355,7 +356,7 @@ def apresentar_resumo():
     st.session_state.pending_action = {"acao": f"criar_{entidade}", "dados": dados}
     st.session_state.conversa_em_andamento = None
     st.session_state.campo_para_corrigir = None
-    st.session_state.entidade_em_correcao = None
+    st.session_state.entidade_em_correcao = None # Limpa o estado de correção
 
 if prompt := st.chat_input("Como posso ajudar?"):
     adicionar_mensagem("user", prompt)
@@ -425,7 +426,8 @@ if st.session_state.get('modo_correcao'):
     )
     if campo_selecionado:
         st.session_state.campo_para_corrigir = campo_selecionado
-        st.session_state.entidade_em_correcao = st.session_state.dados_para_corrigir.get('_entidade_') # Recupera a entidade
+        # CORREÇÃO: Garante que a entidade é mantida durante a correção
+        st.session_state.entidade_em_correcao = st.session_state.dados_para_corrigir.get('_entidade_')
         st.session_state.dados_recolhidos = dados_para_corrigir
         st.session_state.modo_correcao = False
         adicionar_mensagem("assistant", f"Entendido. Por favor, insira o novo valor para **{campo_selecionado.replace('_', ' ')}**.")
@@ -459,7 +461,8 @@ if st.session_state.pending_action and not st.session_state.modo_correcao:
     with col3:
         if st.button("Corrigir uma informação"):
             st.session_state.dados_para_corrigir = action_data["dados"]
-            st.session_state.dados_para_corrigir['_entidade_'] = action_data['acao'].split('_')[1] # Guarda a entidade
+            # CORREÇÃO: Guarda a entidade para ser usada no modo de correção
+            st.session_state.dados_para_corrigir['_entidade_'] = action_data['acao'].split('_')[1]
             st.session_state.modo_correcao = True
             st.session_state.pending_action = None
             st.rerun()
