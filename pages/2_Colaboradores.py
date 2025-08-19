@@ -18,6 +18,7 @@ st.markdown("""
         font-weight: bold;
         padding-top: 20px;
     }
+    /* Cor para o tema claro (padrão) */
     .logo-asset { color: #003366; }
     .logo-flow { color: #E30613; }
 
@@ -105,7 +106,7 @@ def carregar_setores():
     conn.close()
     return setores
 
-def adicionar_colaborador(nome, cpf, gmail, setor_id, codigo, status):
+def adicionar_colaborador(nome, cpf, gmail, setor_id, codigo):
     if not nome or not cpf or not codigo:
         st.error("Nome, CPF e Código são campos obrigatórios.")
         return
@@ -113,8 +114,8 @@ def adicionar_colaborador(nome, cpf, gmail, setor_id, codigo, status):
         conn = get_db_connection()
         data_hoje = date.today()
         conn.execute(
-            "INSERT INTO colaboradores (nome_completo, cpf, gmail, setor_id, data_cadastro, codigo, status_colaborador) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (nome, cpf, gmail, setor_id, data_hoje, codigo, status)
+            "INSERT INTO colaboradores (nome_completo, cpf, gmail, setor_id, data_cadastro, codigo) VALUES (?, ?, ?, ?, ?, ?)",
+            (nome, cpf, gmail, setor_id, data_hoje, codigo)
         )
         conn.commit()
         conn.close()
@@ -125,10 +126,10 @@ def adicionar_colaborador(nome, cpf, gmail, setor_id, codigo, status):
         st.error(f"Erro ao adicionar colaborador: {e}")
 
 def carregar_colaboradores(order_by="c.nome_completo ASC"):
-    """Carrega os colaboradores, incluindo o novo campo de status."""
+    """Carrega os colaboradores, permitindo a ordenação dinâmica e tratando erros."""
     conn = get_db_connection()
     query = f"""
-        SELECT c.id, c.codigo, c.nome_completo, c.cpf, c.gmail, s.nome_setor, c.status_colaborador
+        SELECT c.id, c.codigo, c.nome_completo, c.cpf, c.gmail, s.nome_setor
         FROM colaboradores c
         LEFT JOIN setores s ON c.setor_id = s.id
         ORDER BY {order_by}
@@ -139,20 +140,25 @@ def carregar_colaboradores(order_by="c.nome_completo ASC"):
         return df
     except sqlite3.OperationalError as e:
         st.error(f"Erro ao ordenar os dados: {e}. Verifique se todos os 'Códigos' são numéricos para usar essa ordenação.")
+        # Fallback para a ordenação padrão em caso de erro
         conn_fallback = get_db_connection()
-        fallback_query = "SELECT c.id, c.codigo, c.nome_completo, c.cpf, c.gmail, s.nome_setor, c.status_colaborador FROM colaboradores c LEFT JOIN setores s ON c.setor_id = s.id ORDER BY c.nome_completo ASC"
+        fallback_query = """
+            SELECT c.id, c.codigo, c.nome_completo, c.cpf, c.gmail, s.nome_setor
+            FROM colaboradores c
+            LEFT JOIN setores s ON c.setor_id = s.id
+            ORDER BY c.nome_completo ASC
+        """
         df_fallback = pd.read_sql_query(fallback_query, conn_fallback)
         conn_fallback.close()
         return df_fallback
 
 
-def atualizar_colaborador(col_id, codigo, nome, cpf, gmail, setor_id, status):
-    """Atualiza um colaborador, incluindo o novo campo de status."""
+def atualizar_colaborador(col_id, codigo, nome, cpf, gmail, setor_id):
     try:
         conn = get_db_connection()
         conn.execute(
-            "UPDATE colaboradores SET codigo = ?, nome_completo = ?, cpf = ?, gmail = ?, setor_id = ?, status_colaborador = ? WHERE id = ?",
-            (codigo, nome, cpf, gmail, setor_id, status, col_id)
+            "UPDATE colaboradores SET codigo = ?, nome_completo = ?, cpf = ?, gmail = ?, setor_id = ? WHERE id = ?",
+            (codigo, nome, cpf, gmail, setor_id, col_id)
         )
         conn.commit()
         conn.close()
@@ -185,7 +191,6 @@ st.markdown("---")
 
 setores_list = carregar_setores()
 setores_dict = {s['nome_setor']: s['id'] for s in setores_list}
-status_options = ["Em atividade", "Desligado", "Afastado (stand by)"]
 
 col1, col2 = st.columns([1, 2])
 
@@ -197,23 +202,23 @@ with col1:
         novo_cpf = st.text_input("CPF*")
         novo_gmail = st.text_input("Gmail")
         setor_selecionado_nome = st.selectbox("Setor", options=setores_dict.keys())
-        novo_status = st.selectbox("Status do Colaborador", options=status_options)
 
         if st.form_submit_button("Adicionar Colaborador"):
             setor_id = setores_dict.get(setor_selecionado_nome)
-            adicionar_colaborador(novo_nome, novo_cpf, novo_gmail, setor_id, novo_codigo, novo_status)
+            adicionar_colaborador(novo_nome, novo_cpf, novo_gmail, setor_id, novo_codigo)
 
 with col2:
     with st.expander("Ver, Editar e Excluir Colaboradores", expanded=True):
         
+        # Caixa de seleção para ordenação
         sort_options = {
             "Nome (A-Z)": "c.nome_completo ASC",
             "Código (Crescente)": "CAST(c.codigo AS INTEGER) ASC",
-            "Setor (A-Z)": "s.nome_setor ASC",
-            "Status (A-Z)": "c.status_colaborador ASC"
+            "Setor (A-Z)": "s.nome_setor ASC"
         }
         sort_selection = st.selectbox("Organizar por:", options=sort_options.keys())
 
+        # Carrega os dados com a ordenação selecionada
         colaboradores_df = carregar_colaboradores(order_by=sort_options[sort_selection])
         
         setores_options = list(setores_dict.keys())
@@ -229,23 +234,22 @@ with col2:
                 "nome_setor": st.column_config.SelectboxColumn(
                     "Setor", options=setores_options, required=True
                 ),
-                "status_colaborador": st.column_config.SelectboxColumn(
-                    "Status", options=status_options, required=True
-                )
             },
             hide_index=True,
-            num_rows="dynamic",
+            num_rows="dynamic", # Permite adicionar e excluir linhas
             key="colaboradores_editor"
         )
         
         if st.button("Salvar Alterações"):
+            # Lógica para Exclusão
             deleted_ids = set(colaboradores_df['id']) - set(edited_df['id'])
             for col_id in deleted_ids:
                 if excluir_colaborador(col_id):
                     st.toast(f"Colaborador ID {col_id} excluído!", icon="🗑️")
 
+            # Lógica para Atualização
             for index, row in edited_df.iterrows():
-                if index < len(colaboradores_df):
+                if index < len(colaboradores_df): # Apenas verifica linhas existentes
                     original_row = colaboradores_df.loc[index]
                     if not row.equals(original_row):
                         col_id = row['id']
@@ -254,8 +258,7 @@ with col2:
                         novo_cpf = row['cpf']
                         novo_gmail = row['gmail']
                         novo_setor_id = setores_dict.get(row['nome_setor'])
-                        novo_status = row['status_colaborador']
                         
-                        if atualizar_colaborador(col_id, novo_codigo, novo_nome, novo_cpf, novo_gmail, novo_setor_id, novo_status):
+                        if atualizar_colaborador(col_id, novo_codigo, novo_nome, novo_cpf, novo_gmail, novo_setor_id):
                             st.toast(f"Colaborador '{novo_nome}' atualizado!", icon="✅")
             st.rerun()
