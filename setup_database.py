@@ -16,6 +16,7 @@ def configurar_banco():
 
     # --- NOVO: Adiciona a coluna 'status_colaborador' se não existir ---
     try:
+        # Adiciona a nova coluna com um valor padrão para os registos existentes
         cursor.execute("ALTER TABLE colaboradores ADD COLUMN status_colaborador TEXT DEFAULT 'Em atividade'")
         print("Coluna 'status_colaborador' adicionada com sucesso à tabela 'colaboradores'.")
     except sqlite3.OperationalError as e:
@@ -25,7 +26,8 @@ def configurar_banco():
             raise e
 
     # --- Verificação de outras tabelas (código anterior) ---
-    # ... (código de criação das outras tabelas omitido para brevidade) ...
+    # Este bloco garante que todas as tabelas existam, útil para uma nova configuração.
+    # Omitido para brevidade, mas o seu ficheiro completo deve contê-lo.
 
     conn.commit()
     conn.close()
