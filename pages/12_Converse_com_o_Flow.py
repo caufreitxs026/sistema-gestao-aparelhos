@@ -16,18 +16,15 @@ st.set_page_config(page_title="Converse com o Flow", layout="wide")
 # --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
-    /* Estilos da Logo */
+    /* Estilos da Logo Principal */
     .logo-text {
         font-family: 'Courier New', monospace;
         font-size: 28px;
         font-weight: bold;
         padding-top: 20px;
     }
-    /* Cor para o tema claro (padrão) */
     .logo-asset { color: #003366; }
     .logo-flow { color: #E30613; }
-
-    /* Cor para o tema escuro (usando media query) */
     @media (prefers-color-scheme: dark) {
         .logo-asset { color: #FFFFFF; }
         .logo-flow { color: #FF4B4B; }
@@ -39,27 +36,40 @@ st.markdown("""
         padding-top: 20px;
         padding-bottom: 20px;
     }
-    .sidebar-footer a {
-        margin-right: 15px;
-        text-decoration: none;
-    }
+    .sidebar-footer a { margin-right: 15px; text-decoration: none; }
     .sidebar-footer img {
-        width: 25px;
-        height: 25px;
-        filter: grayscale(1) opacity(0.5);
+        width: 25px; height: 25px; filter: grayscale(1) opacity(0.5);
         transition: filter 0.3s;
     }
-    .sidebar-footer img:hover {
-        filter: grayscale(0) opacity(1);
-    }
-    
+    .sidebar-footer img:hover { filter: grayscale(0) opacity(1); }
     @media (prefers-color-scheme: dark) {
-        .sidebar-footer img {
-            filter: grayscale(1) opacity(0.6) invert(1);
-        }
-        .sidebar-footer img:hover {
-            filter: opacity(1) invert(1);
-        }
+        .sidebar-footer img { filter: grayscale(1) opacity(0.6) invert(1); }
+        .sidebar-footer img:hover { filter: opacity(1) invert(1); }
+    }
+
+    /* --- NOVO: Estilos para a Logo do Chat --- */
+    .flow-title {
+        display: flex;
+        align-items: center;
+        padding-bottom: 10px;
+    }
+    .flow-title .icon {
+        font-size: 2.5em;
+        margin-right: 15px;
+    }
+    .flow-title h1 {
+        font-family: 'Courier New', monospace;
+        font-size: 3em;
+        font-weight: bold;
+        margin: 0;
+        padding: 0;
+        line-height: 1;
+    }
+    .flow-title .text-chat { color: #003366; }
+    .flow-title .text-flow { color: #E30613; }
+    @media (prefers-color-scheme: dark) {
+        .flow-title .text-chat { color: #FFFFFF; }
+        .flow-title .text-flow { color: #FF4B4B; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -361,7 +371,15 @@ CAMPOS_CADASTRO = {
 }
 
 # --- Interface do Chatbot ---
-st.title("💬 Converse com o Flow")
+st.markdown(
+    """
+    <div class="flow-title">
+        <span class="icon">💬</span>
+        <h1><span class="text-chat">Converse com o </span><span class="text-flow">Flow</span></h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 st.markdown("---")
 st.info("Sou o Flow, seu assistente inteligente. Diga `#info` para ver os comandos, `limpar chat` para recomeçar ou `encerrar chat` para sair.")
 
@@ -376,6 +394,8 @@ if "dados_recolhidos" not in st.session_state:
     st.session_state.dados_recolhidos = {}
 if "campo_para_corrigir" not in st.session_state:
     st.session_state.campo_para_corrigir = None
+if "modo_correcao" not in st.session_state:
+    st.session_state.modo_correcao = False
 
 # Exibe o histórico do chat
 for message in st.session_state.messages:
@@ -406,16 +426,24 @@ def adicionar_mensagem(role, content):
 
 def apresentar_resumo():
     """Apresenta o resumo dos dados recolhidos para confirmação."""
-    resumo = f"Perfeito! Recolhi as informações. Por favor, confirme os dados para criar o **{st.session_state.conversa_em_andamento}**:\n"
-    for key, value in st.session_state.dados_recolhidos.items():
+    # CORREÇÃO: Lógica mais robusta para encontrar a entidade
+    entidade = st.session_state.get('conversa_em_andamento') or st.session_state.get('entidade_em_correcao')
+    if not entidade:
+        adicionar_mensagem("assistant", "Ocorreu um erro interno ao tentar apresentar o resumo.")
+        return
+
+    dados = st.session_state.dados_recolhidos
+    resumo = f"Perfeito! Recolhi as informações. Por favor, confirme os dados para criar o **{entidade}**:\n"
+    for key, value in dados.items():
         resumo += f"- **{key.replace('_', ' ').title()}:** {value}\n"
     adicionar_mensagem("assistant", resumo)
     st.session_state.pending_action = {
-        "acao": f"criar_{st.session_state.conversa_em_andamento}",
-        "dados": st.session_state.dados_recolhidos
+        "acao": f"criar_{entidade}",
+        "dados": dados
     }
     st.session_state.conversa_em_andamento = None
     st.session_state.campo_para_corrigir = None
+    st.session_state.entidade_em_correcao = None # Limpa o estado de correção
 
 
 if prompt := st.chat_input("Como posso ajudar?"):
@@ -525,11 +553,26 @@ if st.session_state.pending_action:
 
     with col3:
         if st.button("Corrigir uma informação"):
-            st.session_state.campo_para_corrigir = st.selectbox(
-                "Qual campo deseja corrigir?",
-                options=action_data["dados"].keys(),
-                key="campo_correcao"
-            )
-            adicionar_mensagem("assistant", f"Entendido. Por favor, insira o novo valor para **{st.session_state.campo_para_corrigir}**.")
-            st.session_state.pending_action = None # Limpa a ação de confirmação para esperar o novo dado
+            # CORREÇÃO: Guarda a entidade e os dados para o modo de correção
+            st.session_state.entidade_em_correcao = action_data['acao'].split('_')[1]
+            st.session_state.dados_para_corrigir = action_data["dados"]
+            st.session_state.modo_correcao = True
+            st.session_state.pending_action = None
             st.rerun()
+
+# --- Lógica de Correção (fora do loop principal) ---
+if st.session_state.get('modo_correcao'):
+    dados_para_corrigir = st.session_state.dados_para_corrigir
+    campo_selecionado = st.selectbox(
+        "Qual campo deseja corrigir?",
+        options=dados_para_corrigir.keys(),
+        key="campo_correcao",
+        index=None,
+        placeholder="Selecione um campo..."
+    )
+    if campo_selecionado:
+        st.session_state.campo_para_corrigir = campo_selecionado
+        adicionar_mensagem("assistant", f"Entendido. Por favor, insira o novo valor para **{campo_selecionado.replace('_', ' ')}**.")
+        st.session_state.modo_correcao = False
+        st.session_state.dados_recolhidos = dados_para_corrigir # Prepara para a correção
+        st.rerun()
