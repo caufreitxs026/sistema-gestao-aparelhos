@@ -103,7 +103,7 @@ def show_login_form():
                 else:
                     st.error("Utilizador ou senha inválidos.")
 
-    # Footer com ícones
+    # Footer com ícones (Instagram trocado por LinkedIn)
     st.markdown(
         f"""
         <div class="login-footer">
@@ -126,81 +126,4 @@ def logout():
     st.session_state.pop('user_name', None)
     st.rerun()
 
-def build_sidebar():
-    """Constrói a barra lateral personalizada com navegação organizada e sem emojis."""
-    with st.sidebar:
-        # 1. Logo no topo
-        st.markdown(
-            """
-            <div class="sidebar-logo-text">
-                <span class="sidebar-logo-asset">ASSET</span><span class="sidebar-logo-flow">FLOW</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown("---")
 
-        # 2. Menu de Navegação Organizado por Categorias (sem emojis)
-        st.page_link("app.py", label="Dashboard")
-        
-        st.markdown("##### Operacional")
-        st.page_link("pages/4_Movimentacoes.py", label="Movimentações")
-        st.page_link("pages/9_Devolucoes.py", label="Devoluções")
-        st.page_link("pages/8_Manutencoes.py", label="Manutenções")
-        st.page_link("pages/6_Gerar_Documentos.py", label="Gerar Documentos")
-        
-        st.markdown("##### Cadastros")
-        st.page_link("pages/3_Aparelhos.py", label="Aparelhos")
-        st.page_link("pages/2_Colaboradores.py", label="Colaboradores")
-        st.page_link("pages/5_Contas_Gmail.py", label="Contas Gmail")
-        st.page_link("pages/1_Cadastros_Gerais.py", label="Cadastros Gerais")
-        
-        # Páginas de Admin
-        if st.session_state.get('user_role') == 'Administrador':
-            st.markdown("##### Administração")
-            st.page_link("pages/7_Gerenciar_Usuarios.py", label="Gerir Utilizadores")
-            st.page_link("pages/10_Importar_Exportar.py", label="Importar / Exportar")
-            st.page_link("pages/11_Backup_Restauracao.py", label="Backup e Restauro")
-
-        st.markdown("##### Assistente IA")
-        st.page_link("pages/12_Converse_com_o_Flow.py", label="Converse com o Flow")
-        
-        # 3. Informações do Utilizador e Footer
-        st.markdown("""
-            <style>
-                .sidebar .sidebar-content {
-                    display: flex;
-                    flex-direction: column;
-                    min-height: 100%;
-                }
-                .sidebar .sidebar-content .stButton {
-                    width: 100%;
-                }
-                .sidebar-footer-container {
-                    margin-top: auto;
-                    padding-top: 20px;
-                }
-            </style>
-        """, unsafe_allow_html=True)
-
-        st.markdown('<div class="sidebar-footer-container">', unsafe_allow_html=True)
-        st.write(f"Utilizador: **{st.session_state['user_name']}**")
-        st.write(f"Cargo: **{st.session_state['user_role']}**")
-        if st.button("Logout"):
-            logout()
-
-        st.markdown("---")
-        st.markdown(
-            f"""
-            <div class="sidebar-footer">
-                <a href="https://github.com/caufreitxs026" target="_blank" title="GitHub">
-                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg">
-                </a>
-                <a href="https://linkedin.com/in/cauafreitas" target="_blank" title="LinkedIn">
-                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/linkedin.svg">
-                </a>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
