@@ -31,53 +31,18 @@ def check_login(username, password):
 
 def show_login_form():
     """Exibe o formulário de login centralizado e personalizado."""
-    
-    # CSS para a logo e footer da tela de login
     st.markdown("""
     <style>
-        .login-logo-text {
-            font-family: 'Courier New', monospace;
-            font-size: 48px;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .login-logo-asset { color: #003366; }
-        .login-logo-flow { color: #E30613; }
-
-        @media (prefers-color-scheme: dark) {
-            .login-logo-asset { color: #FFFFFF; }
-            .login-logo-flow { color: #FF4B4B; }
-        }
-
-        .login-footer {
-            text-align: center;
-            margin-top: 30px;
-        }
-        .login-footer a {
-            margin: 0 10px;
-        }
-        .login-footer img {
-            width: 25px;
-            height: 25px;
-            filter: grayscale(1) opacity(0.5);
-            transition: filter 0.3s;
-        }
-        .login-footer img:hover {
-            filter: grayscale(0) opacity(1);
-        }
-        @media (prefers-color-scheme: dark) {
-            .login-footer img {
-                filter: grayscale(1) opacity(0.6) invert(1);
-            }
-            .login-footer img:hover {
-                filter: opacity(1) invert(1);
-            }
-        }
+        .login-logo-text { font-family: 'Courier New', monospace; font-size: 48px; font-weight: bold; text-align: center; margin-bottom: 20px; }
+        .login-logo-asset { color: #003366; } .login-logo-flow { color: #E30613; }
+        @media (prefers-color-scheme: dark) { .login-logo-asset { color: #FFFFFF; } .login-logo-flow { color: #FF4B4B; } }
+        .login-footer { text-align: center; margin-top: 30px; } .login-footer a { margin: 0 10px; }
+        .login-footer img { width: 25px; height: 25px; filter: grayscale(1) opacity(0.5); transition: filter 0.3s; }
+        .login-footer img:hover { filter: grayscale(0) opacity(1); }
+        @media (prefers-color-scheme: dark) { .login-footer img { filter: grayscale(1) opacity(0.6) invert(1); } .login-footer img:hover { filter: opacity(1) invert(1); } }
     </style>
     """, unsafe_allow_html=True)
 
-    # Logo
     st.markdown(
         """
         <div class="login-logo-text">
@@ -87,7 +52,6 @@ def show_login_form():
         unsafe_allow_html=True
     )
     
-    # Usa colunas para centralizar o formulário
     col1, col2, col3 = st.columns([1, 1.5, 1])
     
     with col2:
@@ -103,7 +67,6 @@ def show_login_form():
                 else:
                     st.error("Utilizador ou senha inválidos.")
 
-    # Footer com ícones (Instagram trocado por LinkedIn)
     st.markdown(
         f"""
         <div class="login-footer">
@@ -127,27 +90,16 @@ def logout():
     st.rerun()
 
 def build_sidebar():
-    """Constrói a barra lateral personalizada com logo, navegação organizada e footer."""
+    """Constrói a barra lateral personalizada com navegação organizada e footer."""
     with st.sidebar:
-        # 1. Logo no topo
-        st.markdown(
-            """
-            <div class="sidebar-logo-text">
-                <span class="sidebar-logo-asset">ASSET</span><span class="sidebar-logo-flow">FLOW</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown("---")
-
-        # 2. Menu de Navegação Organizado por Categorias
-        st.markdown("##### Principal")
+        # 1. Menu de Navegação Organizado por Categorias
         st.page_link("app.py", label="Dashboard", icon="📊")
         
         st.markdown("##### Operacional")
         st.page_link("pages/4_Movimentacoes.py", label="Movimentações", icon="🔄")
         st.page_link("pages/9_Devolucoes.py", label="Devoluções", icon="📦")
         st.page_link("pages/8_Manutencoes.py", label="Manutenções", icon="🔧")
+        st.page_link("pages/6_Gerar_Documentos.py", label="Gerar Documentos", icon="�")
         
         st.markdown("##### Cadastros")
         st.page_link("pages/3_Aparelhos.py", label="Aparelhos", icon="📱")
@@ -165,7 +117,7 @@ def build_sidebar():
         st.markdown("##### Assistente IA")
         st.page_link("pages/12_Converse_com_o_Flow.py", label="Converse com o Flow", icon="💬")
         
-        # 3. Informações do Utilizador e Footer (empurrados para o fundo)
+        # 2. Informações do Utilizador e Footer (empurrados para o fundo)
         st.markdown("""
             <style>
                 .sidebar .sidebar-content {
@@ -204,3 +156,4 @@ def build_sidebar():
             unsafe_allow_html=True
         )
         st.markdown('</div>', unsafe_allow_html=True)
+�
