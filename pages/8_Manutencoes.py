@@ -8,7 +8,7 @@ from auth import show_login_form
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- NOVO: Configuração de Layout (Header, Footer e CSS) ---
+# --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
     /* Estilos da Logo */
@@ -129,13 +129,16 @@ def abrir_ordem_servico(aparelho_id, fornecedor, defeito):
     cursor = conn.cursor()
     try:
         cursor.execute("BEGIN TRANSACTION;")
-        ultimo_colaborador_id = cursor.execute("SELECT colaborador_id FROM historico_movimentacoes WHERE aparelho_id = ? ORDER BY data_movimentacao DESC LIMIT 1", (aparelho_id,)).fetchone()
+        ultimo_colaborador = cursor.execute("SELECT colaborador_id FROM historico_movimentacoes WHERE aparelho_id = ? ORDER BY data_movimentacao DESC LIMIT 1", (aparelho_id,)).fetchone()
+        ultimo_colaborador_id = ultimo_colaborador[0] if ultimo_colaborador else None
         status_manutencao_id = cursor.execute("SELECT id FROM status WHERE nome_status = 'Em manutenção'").fetchone()[0]
+
         cursor.execute("INSERT INTO manutencoes (aparelho_id, colaborador_id_no_envio, fornecedor, data_envio, defeito_reportado, status_manutencao) VALUES (?, ?, ?, ?, ?, ?)",
-                       (aparelho_id, ultimo_colaborador_id[0] if ultimo_colaborador_id else None, fornecedor, date.today(), defeito, 'Em Andamento'))
+                       (aparelho_id, ultimo_colaborador_id, fornecedor, date.today(), defeito, 'Em Andamento'))
         cursor.execute("UPDATE aparelhos SET status_id = ? WHERE id = ?", (status_manutencao_id, aparelho_id))
-        cursor.execute("INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, status_id, localizacao_atual, observacoes) VALUES (?, ?, ?, ?, ?)",
-                       (datetime.now(), aparelho_id, status_manutencao_id, f"Assistência: {fornecedor}", f"Defeito: {defeito}"))
+        cursor.execute("INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, colaborador_id, status_id, localizacao_atual, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
+                       (datetime.now(), aparelho_id, ultimo_colaborador_id, status_manutencao_id, f"Assistência: {fornecedor}", f"Defeito: {defeito}"))
+        
         conn.commit()
         st.success("Ordem de Serviço aberta e aparelho enviado para manutenção!")
     except Exception as e:
@@ -144,16 +147,18 @@ def abrir_ordem_servico(aparelho_id, fornecedor, defeito):
     finally:
         conn.close()
 
-def carregar_manutencoes_em_andamento():
+def carregar_manutencoes_em_andamento(order_by="m.data_envio ASC"):
+    """Carrega as manutenções, permitindo a ordenação dinâmica."""
     conn = get_db_connection()
-    df = pd.read_sql_query("""
+    query = f"""
         SELECT m.id, a.numero_serie, mo.nome_modelo, m.fornecedor, m.data_envio, m.defeito_reportado
         FROM manutencoes m
         JOIN aparelhos a ON m.aparelho_id = a.id
         JOIN modelos mo ON a.modelo_id = mo.id
         WHERE m.status_manutencao = 'Em Andamento'
-        ORDER BY m.data_envio ASC
-    """, conn)
+        ORDER BY {order_by}
+    """
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
 
@@ -232,9 +237,21 @@ with tab1:
 
 with tab2:
     st.subheader("2. Ordens de Serviço em Andamento")
-    manutencoes_df = carregar_manutencoes_em_andamento()
 
-    with st.expander("Ver e Editar Ordens de Serviço em Andamento", expanded=True):
+    with st.expander("Ver, Editar e Excluir Ordens de Serviço", expanded=True):
+        
+        # --- NOVO: Caixa de seleção para ordenação ---
+        sort_options = {
+            "Data de Envio (Mais Antiga)": "m.data_envio ASC",
+            "Data de Envio (Mais Recente)": "m.data_envio DESC",
+            "Fornecedor (A-Z)": "m.fornecedor ASC",
+            "Modelo (A-Z)": "mo.nome_modelo ASC"
+        }
+        sort_selection = st.selectbox("Organizar por:", options=sort_options.keys())
+
+        # Carrega os dados com a ordenação selecionada
+        manutencoes_df = carregar_manutencoes_em_andamento(order_by=sort_options[sort_selection])
+
         if manutencoes_df.empty:
             st.info("Nenhuma ordem de serviço em andamento no momento.")
         else:
@@ -283,5 +300,3 @@ with tab2:
                     os_id = os_dict[os_selecionada_str]
                     fechar_ordem_servico(os_id, solucao, custo, novo_status_final)
                     st.rerun()
-
-
