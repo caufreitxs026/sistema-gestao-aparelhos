@@ -106,7 +106,6 @@ def get_db_connection():
 
 def validar_formato_gmail(email):
     """Verifica se o e-mail tem um formato válido e termina com @gmail.com."""
-    # Padrão de e-mail simples que termina com @gmail.com
     padrao = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
     if re.match(padrao, email):
         return True
@@ -122,7 +121,7 @@ def carregar_setores_e_colaboradores():
 def adicionar_conta(email, senha, tel_rec, email_rec, setor_id, col_id):
     if not email:
         st.error("O campo E-mail é obrigatório.")
-        return
+        return False
     try:
         conn = get_db_connection()
         conn.execute(
@@ -132,10 +131,13 @@ def adicionar_conta(email, senha, tel_rec, email_rec, setor_id, col_id):
         conn.commit()
         conn.close()
         st.success(f"Conta '{email}' adicionada com sucesso!")
+        return True
     except sqlite3.IntegrityError:
         st.warning(f"O e-mail '{email}' já está cadastrado.")
+        return False
     except Exception as e:
         st.error(f"Ocorreu um erro: {e}")
+        return False
 
 def carregar_contas(order_by="cg.email ASC"):
     """Carrega as contas, permitindo a ordenação dinâmica."""
@@ -167,6 +169,18 @@ def atualizar_conta(conta_id, senha, tel_rec, email_rec, setor_id, col_id):
         st.error(f"Erro ao atualizar a conta ID {conta_id}: {e}")
         return False
 
+def excluir_conta(conta_id):
+    """Exclui uma conta do banco de dados."""
+    try:
+        conn = get_db_connection()
+        conn.execute("DELETE FROM contas_gmail WHERE id = ?", (conta_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao excluir a conta ID {conta_id}: {e}")
+        return False
+
 # --- Interface do Usuário ---
 setores_list, colaboradores_list = carregar_setores_e_colaboradores()
 setores_dict = {s['nome_setor']: s['id'] for s in setores_list}
@@ -177,7 +191,7 @@ col1, col2 = st.columns([1, 2])
 
 with col1:
     st.subheader("Adicionar Nova Conta")
-    with st.form("form_nova_conta", clear_on_submit=True):
+    with st.form("form_nova_conta"):
         st.warning("Atenção: As senhas são armazenadas em texto plano. Use com cautela.", icon="⚠️")
         email = st.text_input("E-mail/Gmail*")
         senha = st.text_input("Senha", type="password")
@@ -187,16 +201,16 @@ with col1:
         col_sel = st.selectbox("Vinculado ao Colaborador", options=colaboradores_dict.keys(), help="Clique na lista e comece a digitar para pesquisar.")
 
         if st.form_submit_button("Adicionar Conta"):
-            # Validação do formato do e-mail antes de adicionar
             if validar_formato_gmail(email):
                 setor_id = setores_dict.get(setor_sel)
                 col_id = colaboradores_dict.get(col_sel)
-                adicionar_conta(email, senha, tel_rec, email_rec, setor_id, col_id)
+                if adicionar_conta(email, senha, tel_rec, email_rec, setor_id, col_id):
+                    st.rerun() # Limpa o formulário e atualiza a lista apenas em caso de sucesso
             else:
                 st.error("Formato de e-mail inválido. Certifique-se de que termina com '@gmail.com'.")
 
 with col2:
-    with st.expander("Ver e Editar Contas Cadastradas", expanded=True):
+    with st.expander("Ver, Editar e Excluir Contas", expanded=True):
         
         sort_options = {
             "Email (A-Z)": "cg.email ASC",
@@ -222,20 +236,29 @@ with col2:
                 "colaborador": st.column_config.SelectboxColumn("Colaborador", options=colaboradores_options),
             },
             hide_index=True,
+            num_rows="dynamic", # Permite adicionar e excluir linhas
             key="contas_editor"
         )
 
-        if st.button("Salvar Alterações nas Contas"):
+        if st.button("Salvar Alterações"):
+            # Lógica para Exclusão
+            deleted_ids = set(contas_df['id']) - set(edited_df['id'])
+            for conta_id in deleted_ids:
+                if excluir_conta(conta_id):
+                    st.toast(f"Conta ID {conta_id} excluída!", icon="🗑️")
+
+            # Lógica para Atualização
             for index, row in edited_df.iterrows():
-                original_row = contas_df.loc[index]
-                if not row.equals(original_row):
-                    conta_id = row['id']
-                    nova_senha = row['senha'] if row['senha'] and row['senha'] != '******' else original_row['senha']
-                    novo_tel = row['telefone_recuperacao']
-                    novo_email_rec = row['email_recuperacao']
-                    novo_setor_id = setores_dict.get(row['nome_setor'])
-                    novo_col_id = colaboradores_dict.get(row['colaborador'])
-                    
-                    if atualizar_conta(conta_id, nova_senha, novo_tel, novo_email_rec, novo_setor_id, novo_col_id):
-                        st.toast(f"Conta '{row['email']}' atualizada!", icon="✅")
+                if index < len(contas_df): # Apenas verifica linhas existentes
+                    original_row = contas_df.loc[index]
+                    if not row.equals(original_row):
+                        conta_id = row['id']
+                        nova_senha = row['senha'] if row['senha'] and row['senha'] != '******' else original_row['senha']
+                        novo_tel = row['telefone_recuperacao']
+                        novo_email_rec = row['email_recuperacao']
+                        novo_setor_id = setores_dict.get(row['nome_setor'])
+                        novo_col_id = colaboradores_dict.get(row['colaborador'])
+                        
+                        if atualizar_conta(conta_id, nova_senha, novo_tel, novo_email_rec, novo_setor_id, novo_col_id):
+                            st.toast(f"Conta '{row['email']}' atualizada!", icon="✅")
             st.rerun()
