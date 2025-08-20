@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date
 import json
 from auth import show_login_form
 
@@ -9,7 +9,7 @@ from auth import show_login_form
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- NOVO: Configuração de Layout (Header e CSS) ---
+# --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
     /* Estilos da Logo */
@@ -70,7 +70,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- Barra Lateral (Agora contém tudo, incluindo o footer) ---
+# --- Barra Lateral (Agora contém informações e o footer) ---
 with st.sidebar:
     st.write(f"Bem-vindo, **{st.session_state['user_name']}**!")
     st.write(f"Cargo: **{st.session_state['user_role']}**")
@@ -93,7 +93,6 @@ with st.sidebar:
         """,
         unsafe_allow_html=True
     )
-
 
 # --- Funções do DB ---
 def get_db_connection():
@@ -130,17 +129,18 @@ def carregar_aparelhos_em_uso():
     return aparelhos
 
 def processar_devolucao(aparelho_id, colaborador_id, checklist_data, destino_final, observacoes):
-    """Processa a devolução, atualiza status e salva o histórico."""
+    """Processa a devolução, atualiza status e integra-se com a manutenção se necessário."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
         cursor.execute("BEGIN TRANSACTION;")
 
-        # Determina o novo status e se o colaborador será desvinculado
+        id_colaborador_final = None
+        localizacao = ""
+        
         if destino_final == "Devolver ao Estoque":
             novo_status_nome = "Em estoque"
-            id_colaborador_final = None
             localizacao = "Estoque Interno"
         elif destino_final == "Enviar para Manutenção":
             novo_status_nome = "Em manutenção"
@@ -148,7 +148,6 @@ def processar_devolucao(aparelho_id, colaborador_id, checklist_data, destino_fin
             localizacao = "Triagem Manutenção"
         else: # Baixar/Inutilizar
             novo_status_nome = "Baixado/Inutilizado"
-            id_colaborador_final = None
             localizacao = "Descarte"
 
         novo_status_id = cursor.execute("SELECT id FROM status WHERE nome_status = ?", (novo_status_nome,)).fetchone()[0]
@@ -164,11 +163,18 @@ def processar_devolucao(aparelho_id, colaborador_id, checklist_data, destino_fin
         # 2. Atualiza o status principal do aparelho
         cursor.execute("UPDATE aparelhos SET status_id = ? WHERE id = ?", (novo_status_id, aparelho_id))
 
+        # 3. INTEGRAÇÃO: Se o destino for manutenção, abre uma O.S. preliminar
+        if destino_final == "Enviar para Manutenção":
+            cursor.execute("""
+                INSERT INTO manutencoes (aparelho_id, colaborador_id_no_envio, data_envio, defeito_reportado, status_manutencao)
+                VALUES (?, ?, ?, ?, ?)
+            """, (aparelho_id, colaborador_id, date.today(), observacoes, 'Em Andamento'))
+
         conn.commit()
         st.success(f"Devolução processada com sucesso! Novo status do aparelho: {novo_status_nome}.")
         
         if destino_final == "Enviar para Manutenção":
-            st.info("Aparelho encaminhado para o fluxo de manutenção. Vá para a página 'Manutenções' para abrir a Ordem de Serviço.")
+            st.info("Uma Ordem de Serviço preliminar foi aberta. Aceda à página 'Manutenções' para adicionar o fornecedor e outros detalhes.")
         
         return True
 
@@ -178,7 +184,6 @@ def processar_devolucao(aparelho_id, colaborador_id, checklist_data, destino_fin
         return False
     finally:
         conn.close()
-
 
 # --- UI ---
 st.title("Fluxo de Devolução e Triagem")
@@ -237,4 +242,3 @@ else:
         if submitted:
             if processar_devolucao(aparelho_id, colaborador_id, checklist_data, destino_final, observacoes):
                 st.rerun()
-
