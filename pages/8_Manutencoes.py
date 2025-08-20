@@ -192,7 +192,7 @@ def fechar_ordem_servico(manutencao_id, solucao, custo, novo_status_nome):
         
         cursor.execute("UPDATE aparelhos SET status_id = ? WHERE id = ?", (novo_status_id, aparelho_id))
         
-        # Ao fechar a O.S., o aparelho volta para o estoque e é desvinculado
+        # Ao fechar a O.S., o aparelho volta para o estoque e é desvinculado (colaborador_id = None)
         cursor.execute("""
             INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, colaborador_id, status_id, localizacao_atual, observacoes)
             VALUES (?, ?, ?, ?, ?, ?)
