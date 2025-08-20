@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from auth import show_login_form
+import re # Importa a biblioteca para validação de formato (Expressões Regulares)
 
 # --- Autenticação ---
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
@@ -97,11 +98,19 @@ with st.sidebar:
 st.title("Gestão de Contas Gmail")
 st.markdown("---")
 
-# --- Funções do Banco de Dados ---
+# --- Funções do Banco de Dados e Validação ---
 def get_db_connection():
     conn = sqlite3.connect('inventario.db')
     conn.row_factory = sqlite3.Row
     return conn
+
+def validar_formato_gmail(email):
+    """Verifica se o e-mail tem um formato válido e termina com @gmail.com."""
+    # Padrão de e-mail simples que termina com @gmail.com
+    padrao = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
+    if re.match(padrao, email):
+        return True
+    return False
 
 def carregar_setores_e_colaboradores():
     conn = get_db_connection()
@@ -178,14 +187,17 @@ with col1:
         col_sel = st.selectbox("Vinculado ao Colaborador", options=colaboradores_dict.keys(), help="Clique na lista e comece a digitar para pesquisar.")
 
         if st.form_submit_button("Adicionar Conta"):
-            setor_id = setores_dict.get(setor_sel)
-            col_id = colaboradores_dict.get(col_sel)
-            adicionar_conta(email, senha, tel_rec, email_rec, setor_id, col_id)
+            # Validação do formato do e-mail antes de adicionar
+            if validar_formato_gmail(email):
+                setor_id = setores_dict.get(setor_sel)
+                col_id = colaboradores_dict.get(col_sel)
+                adicionar_conta(email, senha, tel_rec, email_rec, setor_id, col_id)
+            else:
+                st.error("Formato de e-mail inválido. Certifique-se de que termina com '@gmail.com'.")
 
 with col2:
     with st.expander("Ver e Editar Contas Cadastradas", expanded=True):
         
-        # --- NOVO: Caixa de seleção para ordenação ---
         sort_options = {
             "Email (A-Z)": "cg.email ASC",
             "Setor (A-Z)": "s.nome_setor ASC",
@@ -193,7 +205,6 @@ with col2:
         }
         sort_selection = st.selectbox("Organizar por:", options=sort_options.keys())
 
-        # Carrega os dados com a ordenação selecionada
         contas_df = carregar_contas(order_by=sort_options[sort_selection])
         
         setores_options = list(setores_dict.keys())
