@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date
 from auth import show_login_form
 
 # --- Verificação de Autenticação ---
@@ -122,22 +122,41 @@ def carregar_dados_para_selects():
     conn.close()
     return aparelhos, colaboradores, status
 
-def registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, localizacao, observacoes):
+def registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, novo_status_nome, localizacao, observacoes):
     conn = get_db_connection()
     cursor = conn.cursor()
     data_hora_agora = datetime.now()
     try:
         cursor.execute("BEGIN TRANSACTION;")
+        
+        # Se o novo status for 'Em manutenção', mantém o vínculo com o último colaborador
+        id_colaborador_final = colaborador_id
+        if novo_status_nome == "Em manutenção":
+            ultimo_colaborador = cursor.execute("SELECT colaborador_id FROM historico_movimentacoes WHERE aparelho_id = ? AND colaborador_id IS NOT NULL ORDER BY data_movimentacao DESC LIMIT 1", (aparelho_id,)).fetchone()
+            if ultimo_colaborador:
+                id_colaborador_final = ultimo_colaborador[0]
+
         cursor.execute(
             "INSERT INTO historico_movimentacoes (data_movimentacao, aparelho_id, colaborador_id, status_id, localizacao_atual, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
-            (data_hora_agora, aparelho_id, colaborador_id, novo_status_id, localizacao, observacoes)
+            (data_hora_agora, aparelho_id, id_colaborador_final, novo_status_id, localizacao, observacoes)
         )
         cursor.execute(
             "UPDATE aparelhos SET status_id = ? WHERE id = ?",
             (novo_status_id, aparelho_id)
         )
+        
+        # INTEGRAÇÃO: Se o destino for manutenção, abre uma O.S. preliminar
+        if novo_status_nome == "Em manutenção":
+            cursor.execute("""
+                INSERT INTO manutencoes (aparelho_id, colaborador_id_no_envio, data_envio, defeito_reportado, status_manutencao)
+                VALUES (?, ?, ?, ?, ?)
+            """, (aparelho_id, id_colaborador_final, date.today(), observacoes, 'Em Andamento'))
+
         conn.commit()
         st.success("Movimentação registada com sucesso!")
+        if novo_status_nome == "Em manutenção":
+            st.info("Uma Ordem de Serviço preliminar foi aberta. Aceda à página 'Manutenções' para adicionar o fornecedor.")
+
     except Exception as e:
         conn.rollback()
         st.error(f"Ocorreu um erro ao registar a movimentação: {e}")
@@ -200,13 +219,12 @@ with st.form("form_movimentacao", clear_on_submit=True):
             aparelho_id = aparelhos_dict[aparelho_selecionado_str]
             colaborador_id = opcoes_colaborador_com_nenhum[colaborador_selecionado_str]
             novo_status_id = status_dict[novo_status_str]
-            registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, nova_localizacao, observacoes)
+            registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, novo_status_str, nova_localizacao, observacoes)
 
 st.markdown("---")
 
 with st.expander("Ver Histórico de Movimentações", expanded=False):
     
-    # --- NOVO: Caixa de seleção para ordenação ---
     sort_options = {
         "Data (Mais Recente)": "h.data_movimentacao DESC",
         "Colaborador (A-Z)": "colaborador ASC",
@@ -215,7 +233,6 @@ with st.expander("Ver Histórico de Movimentações", expanded=False):
     }
     sort_selection = st.selectbox("Organizar histórico por:", options=sort_options.keys())
 
-    # Carrega os dados com a ordenação selecionada
     historico_df = carregar_historico_completo(order_by=sort_options[sort_selection])
     
     st.dataframe(historico_df, use_container_width=True, hide_index=True, column_config={
