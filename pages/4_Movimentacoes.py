@@ -129,7 +129,6 @@ def registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, novo_stat
     try:
         cursor.execute("BEGIN TRANSACTION;")
         
-        # Se o novo status for 'Em manutenção', mantém o vínculo com o último colaborador
         id_colaborador_final = colaborador_id
         if novo_status_nome == "Em manutenção":
             ultimo_colaborador = cursor.execute("SELECT colaborador_id FROM historico_movimentacoes WHERE aparelho_id = ? AND colaborador_id IS NOT NULL ORDER BY data_movimentacao DESC LIMIT 1", (aparelho_id,)).fetchone()
@@ -145,7 +144,6 @@ def registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, novo_stat
             (novo_status_id, aparelho_id)
         )
         
-        # INTEGRAÇÃO: Se o destino for manutenção, abre uma O.S. preliminar
         if novo_status_nome == "Em manutenção":
             cursor.execute("""
                 INSERT INTO manutencoes (aparelho_id, colaborador_id_no_envio, data_envio, defeito_reportado, status_manutencao)
@@ -163,10 +161,10 @@ def registar_movimentacao(aparelho_id, colaborador_id, novo_status_id, novo_stat
     finally:
         conn.close()
 
-def carregar_historico_completo(order_by="h.data_movimentacao DESC"):
-    """Carrega o histórico completo de movimentações, permitindo ordenação."""
+def carregar_historico_completo(status_filter=None, start_date=None, end_date=None):
+    """Carrega o histórico completo de movimentações, com filtros avançados."""
     conn = get_db_connection()
-    query = f"""
+    query = """
         SELECT 
             h.id, h.data_movimentacao, a.numero_serie, mo.nome_modelo,
             c.nome_completo as colaborador, s.nome_status,
@@ -176,9 +174,31 @@ def carregar_historico_completo(order_by="h.data_movimentacao DESC"):
         JOIN status s ON h.status_id = s.id
         LEFT JOIN colaboradores c ON h.colaborador_id = c.id
         LEFT JOIN modelos mo ON a.modelo_id = mo.id
-        ORDER BY {order_by}
     """
-    df = pd.read_sql_query(query, conn)
+    params = []
+    where_clauses = []
+
+    if status_filter and status_filter != "Todos":
+        where_clauses.append("s.nome_status = ?")
+        params.append(status_filter)
+    
+    if start_date and end_date:
+        where_clauses.append("date(h.data_movimentacao) BETWEEN ? AND ?")
+        params.append(start_date.strftime('%Y-%m-%d'))
+        params.append(end_date.strftime('%Y-%m-%d'))
+    elif start_date:
+        where_clauses.append("date(h.data_movimentacao) >= ?")
+        params.append(start_date.strftime('%Y-%m-%d'))
+    elif end_date:
+        where_clauses.append("date(h.data_movimentacao) <= ?")
+        params.append(end_date.strftime('%Y-%m-%d'))
+
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+    
+    query += " ORDER BY h.data_movimentacao DESC"
+    
+    df = pd.read_sql_query(query, conn, params=params)
     conn.close()
     return df
 
@@ -223,18 +243,22 @@ with st.form("form_movimentacao", clear_on_submit=True):
 
 st.markdown("---")
 
-with st.expander("Ver Histórico de Movimentações", expanded=False):
+with st.expander("Ver e Filtrar Histórico de Movimentações", expanded=True):
     
-    sort_options = {
-        "Data (Mais Recente)": "h.data_movimentacao DESC",
-        "Colaborador (A-Z)": "colaborador ASC",
-        "Aparelho (N/S A-Z)": "a.numero_serie ASC",
-        "Status (A-Z)": "s.nome_status ASC"
-    }
-    sort_selection = st.selectbox("Organizar histórico por:", options=sort_options.keys())
+    # --- NOVOS FILTROS AVANÇADOS ---
+    st.markdown("###### Filtros do Relatório")
+    
+    status_options = ["Todos"] + [s['nome_status'] for s in status_list]
+    status_filtro = st.selectbox("Filtrar por Status:", status_options)
 
-    historico_df = carregar_historico_completo(order_by=sort_options[sort_selection])
+    col_data1, col_data2 = st.columns(2)
+    data_inicio = col_data1.date_input("Período de:", value=None, format="DD/MM/YYYY")
+    data_fim = col_data2.date_input("Até:", value=None, format="DD/MM/YYYY")
+
+    # Carrega os dados com os filtros aplicados
+    historico_df = carregar_historico_completo(status_filter=status_filtro, start_date=data_inicio, end_date=data_fim)
     
+    st.markdown("###### Resultados")
     st.dataframe(historico_df, use_container_width=True, hide_index=True, column_config={
         "data_movimentacao": "Data e Hora",
         "numero_serie": "N/S do Aparelho",
