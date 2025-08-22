@@ -7,11 +7,13 @@ import base64
 import io
 
 # --- Autenticação ---
-# Se o utilizador não estiver logado, redireciona para a página principal de login
 if 'logged_in' not in st.session_state or not st.session_state['logged_in']:
     st.switch_page("app.py")
 
-# --- NOVO: Configuração de Layout (Header, Footer e CSS) ---
+# --- Configuração da Página (Movido para o topo) ---
+st.set_page_config(page_title="Gerar Documentos", layout="wide")
+
+# --- Configuração de Layout (Header, Footer e CSS) ---
 st.markdown("""
 <style>
     /* Estilos da Logo */
@@ -21,11 +23,9 @@ st.markdown("""
         font-weight: bold;
         padding-top: 20px;
     }
-    /* Cor para o tema claro (padrão) */
     .logo-asset { color: #003366; }
     .logo-flow { color: #E30613; }
 
-    /* Cor para o tema escuro (usando media query) */
     @media (prefers-color-scheme: dark) {
         .logo-asset { color: #FFFFFF; }
         .logo-flow { color: #FF4B4B; }
@@ -98,7 +98,7 @@ with st.sidebar:
 
 
 # --- Logo da Mirasol em Base64 ---
-LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAASwAAACACAYAAACx28soAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARTSURBVHhe7d3/S9t3fcfxL9wN3Y1u0I2b3U2n053pZJrdcTqd6UwnO9Npd3fT6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9.png"
+LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAASwAAACACAYAAACx28soAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARTSURBVHhe7d3/S9t3fcfxL9wN3Y1u0I2b3U2n053pZJrdcTqd6UwnO9Npd3fT6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9.png"
 
 # --- Classe para gerar o PDF com Novo Design ---
 class PDF(FPDF):
@@ -116,28 +116,23 @@ class PDF(FPDF):
         self.cell(0, 10, 'TERMO DE RESPONSABILIDADE', 0, 1, 'C')
         self.set_font('Arial', 'I', 10)
         self.set_text_color(227, 6, 19) # Vermelho Mirasol
-        self.cell(0, 5, 'PROTOCOLO DE RECEBIMENTO E DEVOLUÇÃO DE SMARTPHONE', 0, 1, 'C')
+        self.cell(0, 5, 'PROTOCOLO DE RECEBIMENTO E DEVOLUCAO DE SMARTPHONE', 0, 1, 'C')
         self.ln(10)
 
     def footer(self):
         self.set_y(-25)
         self.set_font('Arial', 'B', 8)
-        self.cell(0, 5, 'BOAS PRÁTICAS', 0, 1, 'L')
+        self.cell(0, 5, 'BOAS PRATICAS', 0, 1, 'L')
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
-        self.multi_cell(0, 4, '- Mantenha seu aparelho na capa e com película, isso evita problemas com quedas e possíveis acidentes.\n- Carregue seu aparelho somente com o carregador original, isso mantem a vida útil da bateria por mais tempo.\n- Lembre-se que trata-se de um equipamento de trabalho, faça bom uso!', 0, 'L')
-        self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
+        self.multi_cell(0, 4, '- Mantenha seu aparelho na capa e com pelicula, isso evita problemas com quedas e possiveis acidentes.\n- Carregue seu aparelho somente com o carregador original, isso mantem a vida util da bateria por mais tempo.\n- Lembre-se que trata-se de um equipamento de trabalho, faca bom uso!', 0, 'L')
+        self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
 
     def section_title(self, title):
         self.set_font('Arial', 'B', 12)
         self.set_fill_color(0, 51, 102)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 8, title, 0, 1, 'L', fill=True)
-        self.ln(2)
-
-    def draw_line(self):
-        self.set_draw_color(220, 220, 220) # Cinza claro
-        self.cell(0, 0, '', 'T', 1)
+        self.cell(0, 8, f"  {title}", 0, 1, 'L', fill=True)
         self.ln(2)
 
     def info_line(self, label, value):
@@ -175,7 +170,7 @@ def gerar_pdf_termo(dados, checklist_data):
     pdf.add_page()
     
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(95, 7, f"CÓDIGO: {dados['protocolo']}", 1, 0, 'C')
+    pdf.cell(95, 7, f"CODIGO: {dados['protocolo']}", 1, 0, 'C')
     pdf.cell(95, 7, f"DATA: {dados['data_movimentacao']}", 1, 1, 'C')
     pdf.ln(5)
 
@@ -193,9 +188,9 @@ def gerar_pdf_termo(dados, checklist_data):
     pdf.info_line('IMEI 2', dados['imei2'])
     pdf.ln(5)
 
-    pdf.section_title('DOCUMENTAÇÃO')
+    pdf.section_title('DOCUMENTACAO')
     pdf.set_font('Arial', '', 8)
-    texto_doc = "Declaro para os devidos fins que os materiais registrados nesta ficha encontram-se em meu poder para uso em minhas atividades, cabendo-me a responsabilidade por sua guarda e conservação... (Art. 462 CLT). Declaro estar ciente e de acordo com a utilização de meus dados pessoais neste documento, para fins de controle."
+    texto_doc = "Declaro para os devidos fins que os materiais registrados nesta ficha encontram-se em meu poder para uso em minhas atividades, cabendo-me a responsabilidade por sua guarda e conservacao... (Art. 462 CLT). Declaro estar ciente e de acordo com a utilizacao de meus dados pessoais neste documento, para fins de controle."
     pdf.multi_cell(0, 5, texto_doc, 0, 'J')
     pdf.ln(5)
 
@@ -207,7 +202,7 @@ def gerar_pdf_termo(dados, checklist_data):
     pdf.set_font('Arial', '', 10)
     for item, detalhes in checklist_data.items():
         pdf.cell(95, 6, item, 'B', 0)
-        pdf.cell(47.5, 6, 'SIM' if detalhes['entregue'] else 'NÃO', 'B', 0, 'C')
+        pdf.cell(47.5, 6, 'SIM' if detalhes['entregue'] else 'NAO', 'B', 0, 'C')
         pdf.cell(47.5, 6, detalhes['estado'], 'B', 1, 'C')
     pdf.ln(25)
 
@@ -221,7 +216,7 @@ st.title("Gerar Termo de Responsabilidade")
 movimentacoes = get_db_connection().execute("SELECT h.id, h.data_movimentacao, a.numero_serie, c.nome_completo FROM historico_movimentacoes h JOIN aparelhos a ON h.aparelho_id = a.id JOIN colaboradores c ON h.colaborador_id = c.id WHERE h.status_id = (SELECT id FROM status WHERE nome_status = 'Em uso') ORDER BY h.data_movimentacao DESC").fetchall()
 
 if not movimentacoes:
-    st.info("Nenhuma movimentação de entrega encontrada para gerar termos.")
+    st.info("Nenhuma movimentacao de entrega encontrada para gerar termos.")
 else:
     mov_dict = {f"{datetime.fromisoformat(m['data_movimentacao']).strftime('%d/%m/%Y')} - {m['nome_completo']} (S/N: {m['numero_serie']})": m['id'] for m in movimentacoes}
     mov_selecionada_str = st.selectbox("1. Selecione a entrega para gerar o termo:", options=mov_dict.keys())
@@ -230,10 +225,10 @@ else:
 
     if dados_termo:
         st.markdown("---")
-        st.subheader("2. Confira e Edite as Informações (Checkout)")
+        st.subheader("2. Confira e Edite as Informacoes (Checkout)")
         
         with st.form("checkout_form"):
-            dados_termo['protocolo'] = st.text_input("Código do Termo", value=dados_termo['protocolo'])
+            dados_termo['protocolo'] = st.text_input("Codigo do Termo", value=dados_termo['protocolo'])
             dados_termo['data_movimentacao'] = st.text_input("Data", value=datetime.fromisoformat(dados_termo['data_movimentacao']).strftime('%d/%m/%Y'))
             
             st.markdown("##### Dados do Colaborador")
@@ -254,7 +249,7 @@ else:
             st.subheader("3. Preencha o Checklist de Entrega")
             
             checklist_data = {}
-            itens_checklist = ["Tela", "Carcaça", "Bateria", "Botões", "USB", "Chip", "Carregador", "Cabo USB", "Capa", "Película"]
+            itens_checklist = ["Tela", "Carcaca", "Bateria", "Botoes", "USB", "Chip", "Carregador", "Cabo USB", "Capa", "Pelicula"]
             opcoes_estado = ["NOVO NA CAIXA", "BOM", "REGULAR", "AVARIADO"]
             
             for item in itens_checklist:
@@ -266,6 +261,7 @@ else:
             submitted = st.form_submit_button("Gerar Termo em PDF")
             if submitted:
                 pdf_bytes = gerar_pdf_termo(dados_termo, checklist_data)
+                
                 st.session_state['pdf_gerado'] = pdf_bytes
                 st.session_state['pdf_filename'] = f"Termo_{dados_termo['nome_completo'].replace(' ', '_')}.pdf"
 
@@ -277,5 +273,3 @@ if 'pdf_gerado' in st.session_state and st.session_state['pdf_gerado']:
         mime="application/pdf"
     )
     st.session_state['pdf_gerado'] = None
-
-
