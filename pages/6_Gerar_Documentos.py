@@ -139,7 +139,7 @@ class PDF(FPDF):
         self.set_font('Arial', 'B', 10)
         self.cell(30, 7, f" {label}:", 0, 0)
         self.set_font('Arial', '', 10)
-        self.cell(0, 7, f" {value}", 0, 1)
+        self.cell(0, 7, f" {value or ''}", 0, 1)
 
 # --- Funções do DB ---
 def get_db_connection():
@@ -149,17 +149,18 @@ def get_db_connection():
 
 def buscar_dados_termo(mov_id):
     conn = get_db_connection()
+    # CORREÇÃO: Usa LEFT JOIN para garantir que os dados sejam sempre retornados
     dados = conn.execute("""
         SELECT
             c.nome_completo, c.cpf, s.nome_setor, c.gmail, c.codigo as codigo_colaborador,
             m.nome_marca, mo.nome_modelo, a.imei1, a.imei2,
             h.id as protocolo, h.data_movimentacao
         FROM historico_movimentacoes h
-        JOIN colaboradores c ON h.colaborador_id = c.id
-        JOIN setores s ON c.setor_id = s.id
-        JOIN aparelhos a ON h.aparelho_id = a.id
-        JOIN modelos mo ON a.modelo_id = mo.id
-        JOIN marcas m ON mo.marca_id = m.id
+        LEFT JOIN colaboradores c ON h.colaborador_id = c.id
+        LEFT JOIN setores s ON c.setor_id = s.id
+        LEFT JOIN aparelhos a ON h.aparelho_id = a.id
+        LEFT JOIN modelos mo ON a.modelo_id = mo.id
+        LEFT JOIN marcas m ON mo.marca_id = m.id
         WHERE h.id = ?
     """, (mov_id,)).fetchone()
     conn.close()
@@ -170,22 +171,22 @@ def gerar_pdf_termo(dados, checklist_data):
     pdf.add_page()
     
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(95, 7, f"CODIGO: {dados['protocolo']}", 1, 0, 'C')
-    pdf.cell(95, 7, f"DATA: {dados['data_movimentacao']}", 1, 1, 'C')
+    pdf.cell(95, 7, f"CODIGO: {dados.get('protocolo', '')}", 1, 0, 'C')
+    pdf.cell(95, 7, f"DATA: {dados.get('data_movimentacao', '')}", 1, 1, 'C')
     pdf.ln(5)
 
     pdf.section_title('DADOS DO COLABORADOR')
-    pdf.info_line('NOME', dados['nome_completo'])
-    pdf.info_line('CPF', dados['cpf'])
-    pdf.info_line('SETOR', dados['nome_setor'])
-    pdf.info_line('EMAIL', dados['gmail'])
+    pdf.info_line('NOME', dados.get('nome_completo'))
+    pdf.info_line('CPF', dados.get('cpf'))
+    pdf.info_line('SETOR', dados.get('nome_setor'))
+    pdf.info_line('EMAIL', dados.get('gmail'))
     pdf.ln(5)
 
     pdf.section_title('DADOS DO SMARTPHONE')
-    pdf.info_line('MARCA', dados['nome_marca'])
-    pdf.info_line('MODELO', dados['nome_modelo'])
-    pdf.info_line('IMEI 1', dados['imei1'])
-    pdf.info_line('IMEI 2', dados['imei2'])
+    pdf.info_line('MARCA', dados.get('nome_marca'))
+    pdf.info_line('MODELO', dados.get('nome_modelo'))
+    pdf.info_line('IMEI 1', dados.get('imei1'))
+    pdf.info_line('IMEI 2', dados.get('imei2'))
     pdf.ln(5)
 
     pdf.section_title('DOCUMENTACAO')
@@ -207,7 +208,7 @@ def gerar_pdf_termo(dados, checklist_data):
     pdf.ln(25)
 
     pdf.cell(0, 10, '_________________________________________', 0, 1, 'C')
-    pdf.cell(0, 5, dados['nome_completo'], 0, 1, 'C')
+    pdf.cell(0, 5, dados.get('nome_completo', ''), 0, 1, 'C')
     
     return bytes(pdf.output())
 
@@ -228,22 +229,22 @@ else:
         st.subheader("2. Confira e Edite as Informacoes (Checkout)")
         
         with st.form("checkout_form"):
-            dados_termo['protocolo'] = st.text_input("Codigo do Termo", value=dados_termo['protocolo'])
-            dados_termo['data_movimentacao'] = st.text_input("Data", value=datetime.fromisoformat(dados_termo['data_movimentacao']).strftime('%d/%m/%Y'))
+            dados_termo['protocolo'] = st.text_input("Codigo do Termo", value=dados_termo.get('protocolo', ''))
+            dados_termo['data_movimentacao'] = st.text_input("Data", value=datetime.fromisoformat(dados_termo['data_movimentacao']).strftime('%d/%m/%Y') if dados_termo.get('data_movimentacao') else '')
             
             st.markdown("##### Dados do Colaborador")
-            dados_termo['nome_completo'] = st.text_input("Nome", value=dados_termo['nome_completo'])
-            dados_termo['cpf'] = st.text_input("CPF", value=dados_termo['cpf'])
+            dados_termo['nome_completo'] = st.text_input("Nome", value=dados_termo.get('nome_completo', ''))
+            dados_termo['cpf'] = st.text_input("CPF", value=dados_termo.get('cpf', ''))
             
             setores_options = [s['nome_setor'] for s in get_db_connection().execute("SELECT nome_setor FROM setores").fetchall()]
-            current_sector_index = setores_options.index(dados_termo['nome_setor']) if dados_termo['nome_setor'] in setores_options else 0
+            current_sector_index = setores_options.index(dados_termo['nome_setor']) if dados_termo.get('nome_setor') in setores_options else 0
             dados_termo['nome_setor'] = st.selectbox("Setor", options=setores_options, index=current_sector_index)
             
-            dados_termo['gmail'] = st.text_input("Email", value=dados_termo['gmail'])
+            dados_termo['gmail'] = st.text_input("Email", value=dados_termo.get('gmail', ''))
 
             st.markdown("##### Dados do Smartphone")
-            dados_termo['imei1'] = st.text_input("IMEI 1", value=dados_termo['imei1'])
-            dados_termo['imei2'] = st.text_input("IMEI 2", value=dados_termo['imei2'])
+            dados_termo['imei1'] = st.text_input("IMEI 1", value=dados_termo.get('imei1', ''))
+            dados_termo['imei2'] = st.text_input("IMEI 2", value=dados_termo.get('imei2', ''))
             
             st.markdown("---")
             st.subheader("3. Preencha o Checklist de Entrega")
@@ -263,7 +264,7 @@ else:
                 pdf_bytes = gerar_pdf_termo(dados_termo, checklist_data)
                 
                 st.session_state['pdf_gerado'] = pdf_bytes
-                st.session_state['pdf_filename'] = f"Termo_{dados_termo['nome_completo'].replace(' ', '_')}.pdf"
+                st.session_state['pdf_filename'] = f"Termo_{dados_termo.get('nome_completo', 'termo').replace(' ', '_')}.pdf"
 
 if 'pdf_gerado' in st.session_state and st.session_state['pdf_gerado']:
     st.download_button(
