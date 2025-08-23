@@ -6,7 +6,6 @@ import json
 from fpdf import FPDF
 import base64
 import io
-import tempfile
 import os
 
 # --- Autenticação ---
@@ -70,20 +69,16 @@ with st.sidebar:
     )
 
 # --- Logo Embutida ---
-LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAASwAAACACAYAAACx28soAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARTSURBVHhe7d3/S9t3fcfxL9wN3Y1u0I2b3U2n053pZJrdcTqd6UwnO9Npd3fT6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9.png"
+LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAASwAAACACAYAAACx28soAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARTSURBVHhe7d3/S9t3fcfxL9wN3Y1u0I2b3U2n053pZJrdcTqd6UwnO9Npd3fT6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9PpdDqd6UwnO9.png"
 
 # --- Classe para gerar o PDF ---
 class PDF(FPDF):
     def header(self):
         try:
             image_data = base64.b64decode(LOGO_BASE64)
-            # CORREÇÃO: Usa um ficheiro temporário para garantir a compatibilidade
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                tmpfile.write(image_data)
-                tmpfile.flush()
-                self.image(tmpfile.name, x=10, y=8, w=50)
-                # Limpa o ficheiro temporário após o uso
-                os.remove(tmpfile.name)
+            # CORREÇÃO: Usa um buffer de memória, que é mais fiável
+            with io.BytesIO(image_data) as image_file:
+                self.image(image_file, x=10, y=8, w=50, type='PNG')
         except Exception:
             self.set_font('Arial', 'B', 10)
             self.cell(40, 10, 'LOGO', 1, 0, 'C')
@@ -182,6 +177,7 @@ def gerar_pdf_termo(dados, checklist_data):
     pdf.section_title('DOCUMENTAÇÃO')
     pdf.set_font('Arial', '', 8)
     texto_doc = "Declaro para os devidos fins que os materiais registados nesta ficha encontram-se em meu poder para uso em minhas atividades, cabendo-me a responsabilidade por sua guarda e conservação... (Art. 462 CLT). Declaro estar ciente e de acordo com a utilização de meus dados pessoais neste documento, para fins de controle."
+    # Ajusta o tamanho da célula para o texto caber
     pdf.multi_cell(0, 4, texto_doc, 0, 'J')
     pdf.ln(5)
 
@@ -195,7 +191,7 @@ def gerar_pdf_termo(dados, checklist_data):
         pdf.cell(95, 6, item, 'B', 0)
         pdf.cell(47.5, 6, 'SIM' if detalhes['entregue'] else 'NÃO', 'B', 0, 'C')
         pdf.cell(47.5, 6, detalhes['estado'], 'B', 1, 'C')
-    pdf.ln(20) # Espaçamento ajustado
+    pdf.ln(20) # Espaçamento ajustado para caber na página
 
     pdf.cell(0, 10, '_________________________________________', 0, 1, 'C')
     pdf.cell(0, 5, dados['nome_completo'], 0, 1, 'C')
