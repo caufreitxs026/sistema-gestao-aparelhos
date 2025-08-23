@@ -69,11 +69,6 @@ with st.sidebar:
 # --- Classe para gerar o PDF ---
 class PDF(FPDF):
     def header(self):
-        # CORREÇÃO: Usa texto para o nome da empresa em vez de uma imagem
-        self.set_font('Arial', 'B', 14)
-        self.set_text_color(0, 0, 0) # Preto
-        self.cell(0, 10, 'Mirasol Distribuidora Nestlé', 0, 1, 'L') # Alinhado à esquerda
-        
         # Título do Documento
         self.set_y(self.get_y() + 5) # Move o cursor para baixo
         self.set_font('Arial', 'B', 16)
@@ -249,3 +244,4 @@ if 'pdf_gerado' in st.session_state and st.session_state['pdf_gerado']:
         mime="application/pdf"
     )
     st.session_state['pdf_gerado'] = None
+
