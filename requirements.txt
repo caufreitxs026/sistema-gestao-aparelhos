@@ -1,6 +1,9 @@
 streamlit
+streamlit
 pandas
 fpdf2
 plotly
 openpyxl
 httpx
+weasyprint
+jinja2
