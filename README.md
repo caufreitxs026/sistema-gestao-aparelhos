@@ -70,4 +70,4 @@ Uma aplicação web completa e robusta construída com Python e Streamlit para g
     - **Senha Padrão:** `admin`
 
 ---
-*Este projeto foi desenvolvido com o auxílio do Gemini.*
+*Instagram: Caufreitxs*
